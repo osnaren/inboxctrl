@@ -11,3 +11,4 @@ Maintainer-only planning notes and drafts should stay outside tracked files.
 - See [PRIVACY](../PRIVACY.md) for the current data-handling model.
 - See [Gmail Permission Modes](gmail-permission-modes.md) for OAuth scope and mode mapping.
 - See [Google OAuth Self-Hosting](google-oauth-self-hosting.md) for local and deployed OAuth client setup.
+- See [API Route Contract](api-routes.md) for the canonical OSS and Pro API surface.
