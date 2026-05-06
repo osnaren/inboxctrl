@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
+import { SignInSection } from '@/components/auth/sign-in-section';
 import { Button } from '@/components/ui/button';
 
 export default function LandingPage() {
@@ -24,8 +24,10 @@ export default function LandingPage() {
           InboxCtrl is an open-source Gmail control plane for label sync, cached metadata, review-first actions, and
           AI-assisted filter drafts.
         </p>
+        <div className="mb-8 w-full">
+          <SignInSection />
+        </div>
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <GoogleSignInButton />
           <Button asChild size="lg" variant="outline">
             <Link href="https://github.com/osnaren/inboxctrl" target="_blank" rel="noopener noreferrer">
               View on GitHub

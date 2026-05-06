@@ -242,6 +242,16 @@ export const GMAIL_WORKFLOW_SCOPE_REQUIREMENTS: Record<GmailWorkflowId, GmailWor
   },
 };
 
+export const getScopesForPermissionMode = (modeId: GmailPermissionModeId): readonly GmailScope[] => {
+  return GMAIL_PERMISSION_MODES[modeId].minimumScopes;
+};
+
+export const getScopesWithSignInForPermissionMode = (
+  modeId: GmailPermissionModeId
+): readonly (GmailScope | GoogleSignInScope)[] => {
+  return [...GOOGLE_SIGN_IN_SCOPES, ...GMAIL_PERMISSION_MODES[modeId].minimumScopes];
+};
+
 export const CURRENT_BETTER_AUTH_GOOGLE_SCOPES = [
   ...GOOGLE_SIGN_IN_SCOPES,
   GMAIL_SCOPES.modify,

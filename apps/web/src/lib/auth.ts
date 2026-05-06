@@ -1,4 +1,3 @@
-import { CURRENT_BETTER_AUTH_GOOGLE_SCOPES } from '@inboxctrl/core';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
@@ -20,7 +19,6 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       accessType: 'offline',
       prompt: 'select_account consent',
-      scope: [...CURRENT_BETTER_AUTH_GOOGLE_SCOPES],
     },
   },
 });

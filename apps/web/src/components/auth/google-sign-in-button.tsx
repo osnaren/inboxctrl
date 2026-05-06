@@ -4,12 +4,20 @@ import { useState } from 'react';
 
 import Link from 'next/link';
 
+import { getScopesWithSignInForPermissionMode } from '@inboxctrl/core';
 import { Loader2, Mail } from 'lucide-react';
 
+import type { GmailPermissionModeId } from '@/components/gmail-permission-mode-select';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
 
-export function GoogleSignInButton() {
+interface GoogleSignInButtonProps {
+  permissionMode?: GmailPermissionModeId;
+  callbackURL?: string;
+  className?: string;
+}
+
+export function GoogleSignInButton({ permissionMode, callbackURL = '/mail', className }: GoogleSignInButtonProps) {
   const { data: session, isPending } = authClient.useSession();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -19,9 +27,13 @@ export function GoogleSignInButton() {
     setErrorMessage(null);
 
     try {
+      const scopes = permissionMode ? getScopesWithSignInForPermissionMode(permissionMode) : undefined;
+
       const { error } = await authClient.signIn.social({
         provider: 'google',
-        callbackURL: '/mail',
+        callbackURL,
+        ...(scopes && { scopes: scopes as string[] }),
+        ...(permissionMode && { extraParams: { prompt: 'consent' } }),
       });
 
       if (error) {
@@ -36,7 +48,7 @@ export function GoogleSignInButton() {
 
   if (!isPending && session) {
     return (
-      <Button asChild size="lg">
+      <Button asChild size="lg" className={className}>
         <Link href="/mail">Open Inbox</Link>
       </Button>
     );
@@ -46,7 +58,7 @@ export function GoogleSignInButton() {
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <Button size="lg" onClick={handleSignIn} disabled={isDisabled}>
+      <Button size="lg" onClick={handleSignIn} disabled={isDisabled} className={className}>
         {isSigningIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
         {isSigningIn ? 'Connecting...' : 'Continue with Google'}
       </Button>
