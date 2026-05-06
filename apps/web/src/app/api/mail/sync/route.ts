@@ -9,15 +9,14 @@ import { GmailService } from '@/lib/services/gmail.service';
 
 export async function POST(_req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const requestHeaders = await headers();
+    const session = await auth.api.getSession({ headers: requestHeaders });
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const db = new DBService();
     if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const account = await db.getAccount(session.user.id);
-    if (!account?.accessToken) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
-
-    const gmailService = new GmailService(account.accessToken);
+    const gmailService = await GmailService.forUser(session.user.id, requestHeaders);
+    if (!gmailService) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
 
     const remoteLabels = await gmailService.listLabels();
     for (const label of remoteLabels) {

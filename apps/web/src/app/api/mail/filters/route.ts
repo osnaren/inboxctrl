@@ -13,7 +13,8 @@ import type { gmail_v1 } from 'googleapis';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
+    const requestHeaders = await headers();
+    const session = await auth.api.getSession({ headers: requestHeaders });
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { prompt, dryRun = false } = await req.json();
@@ -21,8 +22,8 @@ export async function POST(req: NextRequest) {
 
     const db = new DBService();
     if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const account = await db.getAccount(session.user.id);
-    if (!account?.accessToken) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
+    const gmailService = await GmailService.forUser(session.user.id, requestHeaders);
+    if (!gmailService) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
 
     const userLabels = await db.getUserLabels(session.user.id);
     const validLabelNames = userLabels.map((l) => l.name);
@@ -82,7 +83,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const gmailService = new GmailService(account.accessToken);
     const createdFilter = await gmailService.createFilter(filterData.criteria, actionPayload);
 
     return NextResponse.json({ success: true, filter: createdFilter, parsedAiData: filterData });

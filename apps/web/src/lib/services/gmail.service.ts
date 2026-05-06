@@ -1,4 +1,10 @@
+import { headers } from 'next/headers';
+
 import { google, gmail_v1 } from 'googleapis';
+
+import { getGoogleAccessTokenForAccount } from '@/lib/accounts';
+
+type AuthRequestHeaders = Awaited<ReturnType<typeof headers>>;
 
 export class GmailService {
   private gmail: gmail_v1.Gmail;
@@ -7,6 +13,13 @@ export class GmailService {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
     this.gmail = google.gmail({ version: 'v1', auth });
+  }
+
+  static async forUser(userId: string, requestHeaders: AuthRequestHeaders) {
+    const googleAccess = await getGoogleAccessTokenForAccount(userId, requestHeaders);
+    if (!googleAccess) return null;
+
+    return new GmailService(googleAccess.accessToken);
   }
 
   // --- MESSAGES ---
