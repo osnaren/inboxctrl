@@ -1,6 +1,26 @@
-import type { MailFilterCriteria } from '@inboxctrl/core';
+// Validation
+export { validateCriteria, validateAction, validateFilter } from './validation';
 
-export interface BasicRuleOverlap {
-  field: keyof MailFilterCriteria;
-  value: string;
-}
+// Dry-run
+export { dryRunFilter } from './dry-run';
+
+// Safety checks
+export { checkFilterSafety, isBroadFilter } from './safety';
+
+// Conflict detection (basic OSS)
+export { detectBasicConflicts } from './conflicts';
+
+// Types
+export type {
+  ConflictCheckResult,
+  DryRunEmail,
+  DryRunMatchExplanation,
+  DryRunResult,
+  ExtendedFilterCriteria,
+  FilterConflict,
+  SafetyCheckInput,
+  SafetyCheckOutput,
+  ValidationError,
+  ValidationResult,
+  ValidationWarning,
+} from './types';
