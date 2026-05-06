@@ -10,6 +10,9 @@
       "default": "./src/index.ts"
     }
   },
+  "peerDependencies": {
+    "@prisma/client": "^5.22.0"
+  },
   "scripts": {
     "typecheck": "tsc -b"
   }
