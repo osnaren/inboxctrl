@@ -1,20 +1,30 @@
+/**
+ * App-layer Gmail service - thin wrapper that composes @inboxctrl/gmail
+ * with app-specific concerns (session, request headers, account lookup).
+ *
+ * This wrapper also provides backwards-compatible method signatures so
+ * existing route handlers don't need to change their call sites.
+ */
 import { headers } from 'next/headers';
 
-import { google, gmail_v1 } from 'googleapis';
+import { GmailClient, type GmailLabelInfo } from '@inboxctrl/gmail';
 
 import { getGoogleAccessTokenForAccount } from '@/lib/accounts';
+
+import type { gmail_v1 } from 'googleapis';
 
 type AuthRequestHeaders = Awaited<ReturnType<typeof headers>>;
 
 export class GmailService {
-  private gmail: gmail_v1.Gmail;
+  private client: GmailClient;
 
   constructor(accessToken: string) {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    this.gmail = google.gmail({ version: 'v1', auth });
+    this.client = new GmailClient({ accessToken });
   }
 
+  /**
+   * Create a GmailService for the given user's primary Google account.
+   */
   static async forUser(userId: string, requestHeaders: AuthRequestHeaders) {
     const googleAccess = await getGoogleAccessTokenForAccount(userId, requestHeaders);
     if (!googleAccess) return null;
@@ -22,156 +32,68 @@ export class GmailService {
     return new GmailService(googleAccess.accessToken);
   }
 
-  // --- MESSAGES ---
+  // --- MESSAGES (backwards-compatible signatures) ---
 
   async listRecentMessages(maxResults = 50, labelIds = ['INBOX']) {
-    const res = await this.gmail.users.messages.list({
-      userId: 'me',
-      maxResults,
-      labelIds,
-    });
-    return res.data.messages || [];
+    const result = await this.client.listMessages({ maxResults, labelIds });
+    return result.messages;
   }
 
   async getMessageMetadata(messageId: string) {
-    const res = await this.gmail.users.messages.get({
-      userId: 'me',
-      id: messageId,
-      format: 'metadata',
-      metadataHeaders: ['From', 'To', 'Subject', 'Date'],
-    });
-    return res.data;
+    return this.client.getMessageMetadata(messageId);
   }
 
   async getMessageFull(messageId: string) {
-    const res = await this.gmail.users.messages.get({
-      userId: 'me',
-      id: messageId,
-      format: 'full',
-    });
-    return res.data;
-  }
-
-  extractTextBody(payload: gmail_v1.Schema$MessagePart | undefined): string {
-    let textBody = '';
-    if (payload?.parts) {
-      const textPart = payload.parts.find((p) => p.mimeType === 'text/plain');
-      if (textPart && textPart.body?.data) {
-        textBody = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
-      }
-    } else if (payload?.body?.data) {
-      textBody = Buffer.from(payload.body.data, 'base64').toString('utf-8');
-    }
-    return textBody;
+    return this.client.getMessageFull(messageId);
   }
 
   extractHeaders(headers: gmail_v1.Schema$MessagePartHeader[] | undefined) {
-    const result = { from: '', to: '', subject: '', date: '' };
-    if (!headers) return result;
-    for (const header of headers) {
-      const name = header.name?.toLowerCase();
-      if (name === 'from') result.from = header.value || '';
-      if (name === 'to') result.to = header.value || '';
-      if (name === 'subject') result.subject = header.value || '';
-      if (name === 'date') result.date = header.value || '';
-    }
-    return result;
+    return GmailClient.extractHeaders(headers);
   }
 
-  // --- LABELS ---
+  extractTextBody(payload: gmail_v1.Schema$MessagePart | undefined): string {
+    return GmailClient.extractTextBody(payload);
+  }
 
-  async listLabels() {
-    const res = await this.gmail.users.labels.list({ userId: 'me' });
-    return res.data.labels || [];
+  // --- LABELS (backwards-compatible signatures) ---
+
+  async listLabels(): Promise<GmailLabelInfo[]> {
+    return this.client.listLabels();
   }
 
   async createLabel(name: string, backgroundColor?: string, textColor?: string) {
-    const labelData: gmail_v1.Schema$Label = {
-      name,
-      labelListVisibility: 'labelShow',
-      messageListVisibility: 'show',
-    };
-
-    if (backgroundColor && textColor) {
-      labelData.color = { backgroundColor, textColor };
-    }
-
-    const res = await this.gmail.users.labels.create({
-      userId: 'me',
-      requestBody: labelData,
-    });
-    return res.data;
+    return this.client.createLabel({ name, backgroundColor, textColor });
   }
 
   async updateLabel(labelId: string, name: string, backgroundColor?: string, textColor?: string) {
-    const labelData: gmail_v1.Schema$Label = {
-      id: labelId,
-      name,
-    };
-
-    if (backgroundColor && textColor) {
-      labelData.color = { backgroundColor, textColor };
-    }
-
-    const res = await this.gmail.users.labels.patch({
-      userId: 'me',
-      id: labelId,
-      requestBody: labelData,
-    });
-    return res.data;
+    return this.client.updateLabel({ labelId, name, backgroundColor, textColor });
   }
 
   async deleteLabel(labelId: string) {
-    await this.gmail.users.labels.delete({
-      userId: 'me',
-      id: labelId,
-    });
-    return true;
+    return this.client.deleteLabel(labelId);
   }
 
+  // --- MESSAGE MODIFICATION (backwards-compatible signatures) ---
+
   async modifyMessageLabels(messageId: string, addLabelIds: string[] = [], removeLabelIds: string[] = []) {
-    const res = await this.gmail.users.messages.modify({
-      userId: 'me',
-      id: messageId,
-      requestBody: {
-        addLabelIds,
-        removeLabelIds,
-      },
-    });
-    return res.data;
+    return this.client.modifyMessageLabels({ messageId, addLabelIds, removeLabelIds });
   }
 
   async trashMessage(messageId: string) {
-    const res = await this.gmail.users.messages.trash({
-      userId: 'me',
-      id: messageId,
-    });
-    return res.data;
+    return this.client.trashMessage(messageId);
   }
 
-  // --- FILTERS ---
+  // --- FILTERS (backwards-compatible signatures) ---
 
   async listFilters() {
-    const res = await this.gmail.users.settings.filters.list({ userId: 'me' });
-    return res.data.filter || [];
+    return this.client.listFilters();
   }
 
   async createFilter(criteria: gmail_v1.Schema$FilterCriteria, action: gmail_v1.Schema$FilterAction) {
-    const res = await this.gmail.users.settings.filters.create({
-      userId: 'me',
-      requestBody: {
-        criteria,
-        action,
-      },
-    });
-    return res.data;
+    return this.client.createFilter({ criteria, action });
   }
 
   async deleteFilter(filterId: string) {
-    await this.gmail.users.settings.filters.delete({
-      userId: 'me',
-      id: filterId,
-    });
-    return true;
+    return this.client.deleteFilter(filterId);
   }
 }
