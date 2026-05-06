@@ -5,7 +5,19 @@ import { requireGoogleAccountPermission } from '@/lib/accounts';
 import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
+import { ActionEngine, type ActionType } from '@/lib/services/action-engine';
 import { GmailService } from '@/lib/services/gmail.service';
+
+const VALID_ACTIONS: ActionType[] = [
+  'archive',
+  'trash',
+  'mark-read',
+  'mark-unread',
+  'star',
+  'unstar',
+  'apply-label',
+  'remove-label',
+];
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,15 +30,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid messageIds array' }, { status: 400 });
     }
 
-    if (!['archive', 'trash', 'mark-read', 'mark-unread', 'label'].includes(action)) {
+    if (!VALID_ACTIONS.includes(action)) {
       return NextResponse.json(
-        { error: "Invalid action. Must be 'archive', 'trash', 'mark-read', 'mark-unread', or 'label'" },
+        { error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(', ')}` },
         { status: 400 }
       );
     }
 
-    if (action === 'label' && !labelId) {
-      return NextResponse.json({ error: "Missing labelId for 'label' action" }, { status: 400 });
+    if ((action === 'apply-label' || action === 'remove-label') && !labelId) {
+      return NextResponse.json({ error: `Missing labelId for '${action}' action` }, { status: 400 });
     }
 
     if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
@@ -47,98 +59,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'One or more messages not found or unauthorized' }, { status: 403 });
     }
 
-    const gmailService = new GmailService(permission.accessToken);
+    if ((action === 'apply-label' || action === 'remove-label') && labelId) {
+      const label = await prisma.label.findFirst({
+        where: { userId: session.user.id, gmailId: labelId },
+        select: { gmailId: true },
+      });
 
-    let successCount = 0;
-    const rollbackMessages: { messageId: string; addedLabels: string[]; removedLabels: string[] }[] = [];
-
-    for (const messageId of messageIds) {
-      try {
-        if (action === 'archive') {
-          // Archive means removing from INBOX
-          await gmailService.modifyMessageLabels(messageId, [], ['INBOX']);
-          rollbackMessages.push({ messageId, addedLabels: [], removedLabels: ['INBOX'] });
-
-          // Optimistically update DB
-          const email = await prisma.emailMetadata.findFirst({ where: { messageId, userId: session.user.id } });
-          if (email) {
-            const labels = JSON.parse(email.labelIds || '[]').filter((l: string) => l !== 'INBOX');
-            await prisma.emailMetadata.update({
-              where: { messageId },
-              data: { labelIds: JSON.stringify(labels) },
-            });
-          }
-        } else if (action === 'mark-read') {
-          await gmailService.modifyMessageLabels(messageId, [], ['UNREAD']);
-          rollbackMessages.push({ messageId, addedLabels: [], removedLabels: ['UNREAD'] });
-
-          await prisma.emailMetadata.updateMany({
-            where: { messageId, userId: session.user.id },
-            data: { isUnread: false },
-          });
-        } else if (action === 'mark-unread') {
-          await gmailService.modifyMessageLabels(messageId, ['UNREAD'], []);
-          rollbackMessages.push({ messageId, addedLabels: ['UNREAD'], removedLabels: [] });
-
-          await prisma.emailMetadata.updateMany({
-            where: { messageId, userId: session.user.id },
-            data: { isUnread: true },
-          });
-        } else if (action === 'label') {
-          await gmailService.modifyMessageLabels(messageId, [labelId], []);
-          rollbackMessages.push({ messageId, addedLabels: [labelId], removedLabels: [] });
-
-          const email = await prisma.emailMetadata.findFirst({ where: { messageId, userId: session.user.id } });
-          if (email) {
-            const labels = JSON.parse(email.labelIds || '[]');
-            if (!labels.includes(labelId)) {
-              labels.push(labelId);
-              await prisma.emailMetadata.update({
-                where: { messageId },
-                data: { labelIds: JSON.stringify(labels) },
-              });
-            }
-          }
-        } else if (action === 'trash') {
-          await gmailService.trashMessage(messageId);
-
-          // Delete from local DB cache since it's trashed
-          await prisma.emailMetadata.deleteMany({
-            where: { messageId },
-          });
-        }
-        successCount++;
-      } catch (err) {
-        console.error(`Failed to apply ${action} to message ${messageId}:`, err);
+      if (!label) {
+        return NextResponse.json({ error: 'Label not found or unauthorized' }, { status: 403 });
       }
     }
 
-    const actionTextMap: Record<string, string> = {
-      archive: 'Archived',
-      trash: 'Trashed',
-      'mark-read': 'Marked as read',
-      'mark-unread': 'Marked as unread',
-      label: `Labeled (ID: ${labelId})`,
-    };
-    const actionKeyMap: Record<string, string> = {
-      archive: 'BULK_ARCHIVE',
-      trash: 'BULK_TRASH',
-      'mark-read': 'BULK_MARK_READ',
-      'mark-unread': 'BULK_MARK_UNREAD',
-      label: 'BULK_LABEL',
-    };
+    const gmailService = new GmailService(permission.accessToken);
+    const engine = new ActionEngine(gmailService, session.user.id);
 
-    // Record Activity Log
-    await prisma.activityLog.create({
-      data: {
-        userId: session.user.id,
-        action: actionKeyMap[action],
-        description: `${actionTextMap[action]} ${successCount} emails`,
-        metadata: action === 'trash' ? null : JSON.stringify({ messages: rollbackMessages }),
-      },
+    // Safety check for destructive actions
+    const safetyCheck = await engine.checkSafety(action);
+    if (!safetyCheck.allowed) {
+      return NextResponse.json({ error: safetyCheck.reason, code: 'DESTRUCTIVE_ACTION_DISABLED' }, { status: 403 });
+    }
+
+    const result = await engine.execute({ messageIds, action, labelId });
+
+    return NextResponse.json({
+      success: result.success,
+      processed: result.processed,
+      failed: result.failed,
+      total: result.total,
+      activityLogId: result.activityLogId,
+      ...(result.failed > 0 && {
+        failures: result.results
+          .filter((r) => !r.success)
+          .map((r) => ({
+            messageId: r.messageId,
+            error: r.error,
+          })),
+      }),
     });
-
-    return NextResponse.json({ success: true, processed: successCount, total: messageIds.length });
   } catch (error: unknown) {
     console.error('Bulk Action Error:', error);
     return NextResponse.json(

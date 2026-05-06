@@ -5,6 +5,7 @@ import { requireGoogleAccountPermission } from '@/lib/accounts';
 import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
+import { ActionEngine } from '@/lib/services/action-engine';
 import { GmailService } from '@/lib/services/gmail.service';
 
 export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -16,7 +17,7 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
     const { id } = await props.params;
     if (!id) return NextResponse.json({ error: 'Missing activity ID' }, { status: 400 });
 
-    const log = await prisma.activityLog.findUnique({
+    const log = await prisma.activityLog.findFirst({
       where: { id, userId: session.user.id },
     });
 
@@ -29,23 +30,11 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
     if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
     const gmailService = new GmailService(permission.accessToken);
-    const rollbackData = JSON.parse(log.metadata);
+    const engine = new ActionEngine(gmailService, session.user.id);
+    const rollback = await engine.rollback(id);
+    const updatedLog = await prisma.activityLog.findUnique({ where: { id } });
 
-    if (log.action === 'BULK_LABEL' || log.action === 'BULK_ARCHIVE') {
-      const messages = rollbackData.messages || [];
-      for (const msg of messages) {
-        await gmailService.modifyMessageLabels(msg.messageId, msg.removedLabels, msg.addedLabels);
-      }
-    } else {
-      return NextResponse.json({ error: `Rollback not supported for action ${log.action}` }, { status: 400 });
-    }
-
-    const updatedLog = await prisma.activityLog.update({
-      where: { id },
-      data: { isRolledBack: true },
-    });
-
-    return NextResponse.json({ success: true, log: updatedLog });
+    return NextResponse.json({ success: rollback.success, reversedCount: rollback.reversedCount, log: updatedLog });
   } catch (error: unknown) {
     console.error('Rollback Error:', error);
     return NextResponse.json({ error: 'Failed to rollback', details: getErrorMessage(error) }, { status: 500 });

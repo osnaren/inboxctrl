@@ -52,6 +52,8 @@ export async function POST(_req: NextRequest) {
         if (!isNaN(d.getTime())) parsedDate = d;
       }
 
+      const sender = extractSenderEmail(extractedHeaders.from);
+
       await prisma.emailMetadata.create({
         data: {
           messageId: fullMsg.id as string,
@@ -61,6 +63,7 @@ export async function POST(_req: NextRequest) {
           to: extractedHeaders.to,
           subject: extractedHeaders.subject,
           snippet: fullMsg.snippet || '',
+          sender,
           date: parsedDate,
           isUnread: (fullMsg.labelIds || []).includes('UNREAD'),
           isStarred: (fullMsg.labelIds || []).includes('STARRED'),
@@ -70,9 +73,20 @@ export async function POST(_req: NextRequest) {
       syncedCount++;
     }
 
+    // Update last sync timestamp for cache freshness
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { lastSyncAt: new Date() },
+    });
+
     return NextResponse.json({ success: true, count: syncedCount });
   } catch (error: unknown) {
     console.error('Sync API Error:', error);
     return NextResponse.json({ error: 'Failed to sync', details: getErrorMessage(error) }, { status: 500 });
   }
+}
+
+function extractSenderEmail(fromHeader: string): string {
+  const senderMatch = fromHeader.match(/<([^>]+)>/);
+  return (senderMatch ? senderMatch[1] : fromHeader).toLowerCase().trim();
 }
