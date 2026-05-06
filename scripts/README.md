@@ -2,7 +2,4 @@
 
 Repository setup and validation scripts belong here.
 
-Candidate public scripts:
-
-- `setup.ts`
-- `check-env.ts`
+No public helper scripts are required yet. Keep generated outputs and local-only maintenance scripts outside tracked files.
