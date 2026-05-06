@@ -1,0 +1,30 @@
+{
+  "version": "0.2",
+  "language": "en,en-GB,en-US",
+  "useGitignore": true,
+  "ignorePaths": [
+    "node_modules/**",
+    ".next/**",
+    "dist/**",
+    "build/**",
+    "out/**",
+    "pnpm-lock.yaml",
+    "public/**",
+    "**/*.svg",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.json",
+    "**/*.config.ts",
+    "**/*.config.mjs"
+  ],
+  "dictionaryDefinitions": [
+    {
+      "name": "repo-words",
+      "path": "./.cspell/repo-words.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["repo-words", "typescript", "javascript", "node", "nextjs", "html", "css", "fonts"]
+}
