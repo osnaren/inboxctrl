@@ -1,10 +1,15 @@
-import { openai } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGroq } from '@ai-sdk/groq';
+import { createOpenAI, openai } from '@ai-sdk/openai';
 import { generateText, generateObject, type LanguageModel } from 'ai';
 
 import { PROMPT_TEMPLATES } from './prompts';
+import { getProviderDescriptor } from './providers';
 import { filterDraftSchema, labelSuggestionSchema, taskExtractionSchema } from './schemas';
 
 import type {
+  AiProviderId,
   AiProviderConfig,
   AiServiceOptions,
   FilterDraftResult,
@@ -39,11 +44,29 @@ export class AiService {
    * Defaults to OpenAI `gpt-4o-mini` when no config is given.
    */
   private static resolveModel(config?: AiProviderConfig): LanguageModel {
-    // Currently only OpenAI is wired up; the architecture supports adding
-    // Anthropic / Gemini / Groq / local providers via additional @ai-sdk/*
-    // packages without changing this service.
-    const modelId = config?.model ?? 'gpt-4o-mini';
-    return openai(modelId);
+    const providerId = config?.providerId ?? 'openai';
+    const descriptor = getProviderDescriptor(providerId);
+
+    if (!descriptor) {
+      throw new Error(`Unsupported AI provider: ${providerId}`);
+    }
+
+    const modelId = config?.model ?? descriptor.defaultModel;
+
+    switch (providerId as AiProviderId) {
+      case 'openai':
+        return config?.apiKey || config?.baseUrl
+          ? createOpenAI({ apiKey: config.apiKey, baseURL: config.baseUrl })(modelId)
+          : openai(modelId);
+      case 'anthropic':
+        return createAnthropic({ apiKey: config?.apiKey, baseURL: config?.baseUrl })(modelId);
+      case 'gemini':
+        return createGoogleGenerativeAI({ apiKey: config?.apiKey, baseURL: config?.baseUrl })(modelId);
+      case 'groq':
+        return createGroq({ apiKey: config?.apiKey, baseURL: config?.baseUrl })(modelId);
+      default:
+        throw new Error(`Unsupported AI provider: ${providerId}`);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -122,5 +145,19 @@ export class AiService {
     });
 
     return object;
+  }
+
+  // -----------------------------------------------------------------------
+  // Convenience aliases for cleaner call sites
+  // -----------------------------------------------------------------------
+
+  /** Alias for summarizeEmail - used by route handlers. */
+  async summarize(textBody: string): Promise<string> {
+    return this.summarizeEmail(textBody);
+  }
+
+  /** Alias for suggestReply - used by route handlers. */
+  async smartReply(textBody: string, instruction?: string): Promise<string> {
+    return this.suggestReply(textBody, instruction);
   }
 }

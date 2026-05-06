@@ -48,6 +48,7 @@ model User {
   email         String?         @unique
   emailVerified Boolean         @default(false)
   image         String?
+  lastSyncAt    DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   accounts      Account[]
@@ -55,6 +56,7 @@ model User {
   emails        EmailMetadata[]
   labels        Label[]
   activityLogs  ActivityLog[]
+  settings      UserSettings?
 
   @@map("user")
 }
@@ -80,6 +82,7 @@ model EmailMetadata {
   to          String
   subject     String
   snippet     String?  
+  sender      String?  // Extracted email address from "from" field (e.g., "noreply@github.com")
   date        DateTime
   isUnread    Boolean  @default(false)
   isStarred   Boolean  @default(false)
@@ -90,6 +93,8 @@ model EmailMetadata {
   updatedAt   DateTime @updatedAt
   
   @@index([userId, date(sort: Desc)])
+  @@index([userId, sender])
+  @@index([userId, isUnread])
   @@index([threadId])
 }
 
@@ -109,11 +114,38 @@ model ActivityLog {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action      String   // e.g., "ARCHIVE", "LABEL", "TRASH"
+  action      String   // e.g., "ARCHIVE", "LABEL", "TRASH", "SYNC_COMPLETED", "AI_SUGGESTION_GENERATED"
   description String   // e.g., "Archived 301 emails from github.com"
   metadata    String?  // JSON string containing previous state for rollback (e.g., message IDs, previous label IDs)
   isRolledBack Boolean @default(false)
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+model UserSettings {
+  id                          String   @id @default(cuid())
+  userId                      String   @unique
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // AI settings (OSN-67)
+  aiEnabled                   Boolean  @default(false)
+  aiProviderId                String   @default("openai")
+  aiModel                     String   @default("gpt-4o-mini")
+  aiApiKeyEncrypted           String?  // Encrypted BYOK API key
+  aiApiKeySet                 Boolean  @default(false)
+
+  // Privacy settings (OSN-70)
+  allowExternalAi             Boolean  @default(false)
+  allowFullBodyFetch          Boolean  @default(false)
+  allowDestructiveActions     Boolean  @default(false)
+  requireBulkConfirmation     Boolean  @default(true)
+  allowAiOutputStorage        Boolean  @default(false)
+  metadataCacheRetentionDays  Int      @default(90)
+  activityLogRetentionDays    Int      @default(365)
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@map("user_settings")
 }
