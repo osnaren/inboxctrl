@@ -1,3 +1,4 @@
+import { CURRENT_BETTER_AUTH_GOOGLE_SCOPES } from '@inboxctrl/core';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
@@ -19,13 +20,7 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       accessType: 'offline',
       prompt: 'select_account consent',
-      scope: [
-        'profile',
-        'email',
-        'https://www.googleapis.com/auth/gmail.modify', // Organizer mode: Read, archive, move, star, trash. No permanent delete.
-        'https://www.googleapis.com/auth/gmail.settings.basic', // Settings mode: Manage filters.
-        'https://www.googleapis.com/auth/gmail.labels', // Label management.
-      ],
+      scope: [...CURRENT_BETTER_AUTH_GOOGLE_SCOPES],
     },
   },
 });

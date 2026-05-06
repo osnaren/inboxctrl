@@ -40,6 +40,11 @@ requiring optional packages for OSS installs. To load an installed extension pac
 INBOXCTRL_PLUGINS=@scope/package-name
 ```
 
+## Gmail Permissions
+
+InboxCtrl maps Gmail OAuth access into read-only audit, organizer, and settings/filter modes. See
+[docs/gmail-permission-modes.md](docs/gmail-permission-modes.md) for the scope map and Google verification notes.
+
 ## Local Setup
 
 Prerequisites:
