@@ -102,15 +102,24 @@ export class GmailClient {
   static extractTextBody(payload: gmail_v1.Schema$MessagePart | undefined): string {
     if (!payload) return '';
 
-    if (payload.parts) {
-      const textPart = payload.parts.find((p) => p.mimeType === 'text/plain');
-      if (textPart?.body?.data) {
-        return Buffer.from(textPart.body.data, 'base64').toString('utf-8');
-      }
-    } else if (payload.body?.data) {
-      return Buffer.from(payload.body.data, 'base64').toString('utf-8');
+    if (payload.mimeType === 'text/plain' && payload.body?.data) {
+      return GmailClient.decodeBodyData(payload.body.data);
     }
+
+    for (const part of payload.parts ?? []) {
+      const text = GmailClient.extractTextBody(part);
+      if (text) return text;
+    }
+
+    if (payload.body?.data && !payload.parts?.length) {
+      return GmailClient.decodeBodyData(payload.body.data);
+    }
+
     return '';
+  }
+
+  private static decodeBodyData(data: string): string {
+    return Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
   }
 
   // -----------------------------------------------------------------------

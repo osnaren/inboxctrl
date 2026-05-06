@@ -68,6 +68,7 @@ export interface PromptTemplate {
 export interface LabelSuggestionResult {
   messageId: string;
   suggestedLabel: string;
+  confidence: number;
   action: 'Archive' | 'Delete' | 'Keep in Inbox';
   reasoning: string;
 }

@@ -9,6 +9,7 @@ export const labelSuggestionSchema = z.object({
     z.object({
       messageId: z.string().describe('The ID of the email'),
       suggestedLabel: z.string().describe("The suggested label name, or 'None'"),
+      confidence: z.number().min(0).max(1).describe('Confidence score from 0 to 1'),
       action: z.enum(['Archive', 'Delete', 'Keep in Inbox']).describe('Suggested action'),
       reasoning: z.string().describe('Brief 1-sentence reason for this suggestion'),
     })
