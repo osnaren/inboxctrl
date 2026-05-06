@@ -90,6 +90,9 @@ http://localhost:3000/api/auth/callback/google
 
 For deployed/self-hosted installs, set `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` to the public app origin, then add `${BETTER_AUTH_URL}/api/auth/callback/google` in Google Cloud. Google matches the full redirect URI exactly, including `http`/`https`, host, path, case, and trailing slash. Local placeholder Google credentials are allowed for `pnpm build`, but sign-in smoke tests require real `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 
+See [docs/google-oauth-self-hosting.md](docs/google-oauth-self-hosting.md) for self-hosting notes, token handling, and
+disconnect behavior.
+
 ## Validation
 
 ```bash

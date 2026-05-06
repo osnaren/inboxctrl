@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { GitBranch, Search, Settings, UserCircle } from 'lucide-react';
 
+import { AccountStatusPill } from '@/components/account-status-pill';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -19,6 +20,7 @@ export function Header() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <AccountStatusPill />
         <Button asChild variant="ghost" size="icon">
           <Link href="https://github.com/osnaren/inboxctrl" target="_blank" rel="noopener noreferrer">
             <GitBranch className="h-5 w-5" />

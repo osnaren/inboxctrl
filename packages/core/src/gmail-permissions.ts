@@ -257,3 +257,47 @@ export const CURRENT_BETTER_AUTH_SCOPE_COMPARISON = {
   notes:
     'The current app asks for organizer and settings/filter scopes together. OSN-63 should enforce explicit mode boundaries before mutating routes rely on this map.',
 } as const;
+
+const permissionModeStrength: GmailPermissionModeId[] = ['settings-filter', 'organizer', 'read-only-audit'];
+
+export const normalizeGoogleScopes = (scopes: string | readonly string[] | null | undefined): string[] => {
+  if (!scopes) return [];
+
+  const rawScopes = typeof scopes === 'string' ? scopes.split(/[\s,]+/) : [...scopes];
+  return [...new Set(rawScopes.map((scope) => scope.trim()).filter(Boolean))];
+};
+
+export const getGrantedGmailPermissionModes = (
+  scopes: string | readonly string[] | null | undefined
+): GmailPermissionModeId[] => {
+  const grantedScopes = new Set(normalizeGoogleScopes(scopes));
+
+  return permissionModeStrength.filter((modeId) =>
+    GMAIL_PERMISSION_MODES[modeId].minimumScopes.every((scope) => grantedScopes.has(scope))
+  );
+};
+
+export const getCurrentGmailPermissionMode = (
+  scopes: string | readonly string[] | null | undefined
+): GmailPermissionModeId | null => getGrantedGmailPermissionModes(scopes)[0] ?? null;
+
+export const getMissingScopesForGmailPermissionMode = (
+  modeId: GmailPermissionModeId,
+  scopes: string | readonly string[] | null | undefined
+): GmailScope[] => {
+  const grantedScopes = new Set(normalizeGoogleScopes(scopes));
+
+  return GMAIL_PERMISSION_MODES[modeId].minimumScopes.filter((scope) => !grantedScopes.has(scope));
+};
+
+export const hasGmailScope = (scopes: string | readonly string[] | null | undefined, scope: GmailScope): boolean =>
+  normalizeGoogleScopes(scopes).includes(scope);
+
+export const hasAnyGmailScope = (
+  scopes: string | readonly string[] | null | undefined,
+  requiredScopes: readonly GmailScope[]
+): boolean => {
+  const grantedScopes = new Set(normalizeGoogleScopes(scopes));
+
+  return requiredScopes.some((scope) => grantedScopes.has(scope));
+};
