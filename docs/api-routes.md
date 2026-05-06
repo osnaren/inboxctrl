@@ -54,12 +54,24 @@ requests return `401 Unauthorized`.
 
 ### AI
 
-| Method | Route               | Description                | Permission Mode |
-| ------ | ------------------- | -------------------------- | --------------- |
-| POST   | `/api/ai/summarize` | Summarise email body       | read-only-audit |
-| POST   | `/api/ai/reply`     | Generate smart reply draft | read-only-audit |
-| POST   | `/api/ai/tasks`     | Extract actionable tasks   | read-only-audit |
-| POST   | `/api/ai/triage`    | Bulk label suggestions     | read-only-audit |
+| Method | Route                       | Description                         | Permission Mode            |
+| ------ | --------------------------- | ----------------------------------- | -------------------------- |
+| POST   | `/api/ai/label-suggestions` | Metadata-only label suggestions     | local cache + AI opt-in    |
+| POST   | `/api/ai/apply-suggestions` | Apply accepted AI label suggestions | organizer                  |
+| POST   | `/api/ai/summarize`         | Summarise email body                | gmail.readonly + AI opt-in |
+| POST   | `/api/ai/reply`             | Generate smart reply draft          | gmail.readonly + AI opt-in |
+| POST   | `/api/ai/tasks`             | Extract actionable tasks            | gmail.readonly + AI opt-in |
+| POST   | `/api/ai/triage`            | Triage unread cached metadata       | local cache + AI opt-in    |
+
+### Settings
+
+| Method | Route                   | Description                            | Permission Mode |
+| ------ | ----------------------- | -------------------------------------- | --------------- |
+| GET    | `/api/settings/ai`      | Read AI provider settings              | local-only      |
+| POST   | `/api/settings/ai`      | Update AI provider settings            | local-only      |
+| POST   | `/api/settings/ai/test` | Test configured provider with no email | local-only      |
+| GET    | `/api/settings/privacy` | Read privacy and safety settings       | local-only      |
+| POST   | `/api/settings/privacy` | Update privacy and safety settings     | local-only      |
 
 ---
 
