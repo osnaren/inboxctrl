@@ -7,3 +7,4 @@ nextjs
 shadcn
 tailwindcss
 Turbopack
+unstar

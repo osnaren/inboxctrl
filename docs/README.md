@@ -9,3 +9,4 @@ Maintainer-only planning notes and drafts should stay outside tracked files.
 - See the root [README](../README.md) for setup, environment variables, and validation commands.
 - See [SECURITY](../SECURITY.md) for vulnerability reporting and security practices.
 - See [PRIVACY](../PRIVACY.md) for the current data-handling model.
+- See [Gmail Permission Modes](gmail-permission-modes.md) for OAuth scope and mode mapping.
