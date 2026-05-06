@@ -25,13 +25,13 @@ export async function POST(_req: NextRequest) {
       if (!label.id || !label.name) continue;
       await prisma.label.upsert({
         where: { gmailId: label.id },
-        update: { name: label.name, type: label.type || 'system', color: label.color?.backgroundColor || null },
+        update: { name: label.name, type: label.type || 'system', color: label.color || null },
         create: {
           gmailId: label.id,
           userId: session.user.id,
           name: label.name,
           type: label.type || 'system',
-          color: label.color?.backgroundColor || null,
+          color: label.color || null,
         },
       });
     }
@@ -44,7 +44,7 @@ export async function POST(_req: NextRequest) {
       if (await db.emailExists(msg.id)) continue;
 
       const fullMsg = await gmailService.getMessageMetadata(msg.id);
-      const extractedHeaders = gmailService.extractHeaders(fullMsg.payload?.headers);
+      const extractedHeaders = fullMsg.headers;
 
       let parsedDate = new Date();
       if (extractedHeaders.date) {

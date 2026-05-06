@@ -1,43 +1,34 @@
+/**
+ * @deprecated Label sync logic has moved to '@inboxctrl/sync-engine'.
+ *
+ * This file exists for backwards compatibility during migration.
+ * It delegates to the new sync-engine package.
+ */
+import { GmailClient } from '@inboxctrl/gmail';
+import { syncLabels } from '@inboxctrl/sync-engine';
+
 import { prisma } from '@/lib/prisma';
 
-import { getGmailClient } from './client';
+export async function syncLabelsLegacy(accessToken: string, userId: string) {
+  const gmail = new GmailClient({ accessToken });
 
-export async function syncLabels(accessToken: string, userId: string) {
-  const gmail = await getGmailClient(accessToken);
+  const result = await syncLabels(
+    gmail,
+    {
+      upsertLabel: async (data) => {
+        await prisma.label.upsert({
+          where: { gmailId: data.gmailId },
+          update: { name: data.name, type: data.type, color: data.color },
+          create: { gmailId: data.gmailId, userId: data.userId, name: data.name, type: data.type, color: data.color },
+        });
+      },
+      findEmail: async () => null,
+      upsertEmail: async () => {},
+    },
+    { userId }
+  );
 
-  try {
-    const listRes = await gmail.users.labels.list({ userId: 'me' });
-    const labels = listRes.data.labels;
-
-    if (!labels) return [];
-
-    const syncedLabels = [];
-
-    for (const label of labels) {
-      if (!label.id || !label.name) continue;
-
-      const savedLabel = await prisma.label.upsert({
-        where: { gmailId: label.id },
-        update: {
-          name: label.name,
-          type: label.type || 'system',
-          color: label.color?.backgroundColor || null,
-        },
-        create: {
-          gmailId: label.id,
-          userId: userId,
-          name: label.name,
-          type: label.type || 'system',
-          color: label.color?.backgroundColor || null,
-        },
-      });
-
-      syncedLabels.push(savedLabel);
-    }
-
-    return syncedLabels;
-  } catch (error) {
-    console.error('Error syncing labels:', error);
-    throw error;
-  }
+  return result.labels;
 }
+
+export { syncLabelsLegacy as syncLabels };

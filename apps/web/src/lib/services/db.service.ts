@@ -1,37 +1,41 @@
+/**
+ * App-layer DB service - thin wrapper around @inboxctrl/db repositories.
+ *
+ * This file exists for backwards compatibility with existing imports.
+ * New code should import directly from @inboxctrl/db.
+ */
+import {
+  PrismaAccountRepository,
+  PrismaEmailRepository,
+  PrismaLabelRepository,
+  PrismaActivityLogRepository,
+} from '@inboxctrl/db';
+
 import { prisma } from '@/lib/prisma';
 
 export class DBService {
-  async getAccount(userId: string, providerId: string = 'google') {
-    return await prisma.account.findFirst({
-      where: { userId, providerId },
-    });
+  private readonly accounts = new PrismaAccountRepository(prisma);
+  private readonly emails = new PrismaEmailRepository(prisma);
+  private readonly labels = new PrismaLabelRepository(prisma);
+  private readonly activityLogs = new PrismaActivityLogRepository(prisma);
+
+  async getAccount(userId: string, providerId = 'google') {
+    return this.accounts.findByProvider(userId, providerId);
   }
 
   async getUserLabels(userId: string) {
-    return await prisma.label.findMany({
-      where: { userId },
-    });
+    return this.labels.findByUser(userId);
   }
 
-  async getUserEmails(userId: string, limit: number = 50) {
-    return await prisma.emailMetadata.findMany({
-      where: { userId },
-      orderBy: { date: 'desc' },
-      take: limit,
-    });
+  async getUserEmails(userId: string, limit = 50) {
+    return this.emails.findByUser(userId, limit);
   }
 
-  async getUnreadEmails(userId: string, limit: number = 10) {
-    return await prisma.emailMetadata.findMany({
-      where: { userId, isUnread: true },
-      orderBy: { date: 'desc' },
-      take: limit,
-    });
+  async getUnreadEmails(userId: string, limit = 10) {
+    return this.emails.findUnread(userId, limit);
   }
 
   async emailExists(messageId: string) {
-    return await prisma.emailMetadata.findFirst({
-      where: { messageId },
-    });
+    return this.emails.findByMessageId(messageId);
   }
 }
