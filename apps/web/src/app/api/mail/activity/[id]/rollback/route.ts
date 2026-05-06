@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireGoogleAccountPermission } from '@/lib/accounts';
 import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
@@ -24,9 +25,10 @@ export async function POST(_req: NextRequest, props: { params: Promise<{ id: str
     if (!log.metadata) return NextResponse.json({ error: 'No rollback metadata available' }, { status: 400 });
 
     if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const gmailService = await GmailService.forUser(session.user.id, requestHeaders);
-    if (!gmailService) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
+    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'organizer');
+    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
+    const gmailService = new GmailService(permission.accessToken);
     const rollbackData = JSON.parse(log.metadata);
 
     if (log.action === 'BULK_LABEL' || log.action === 'BULK_ARCHIVE') {

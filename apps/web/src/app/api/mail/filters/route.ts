@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireGoogleAccountPermission } from '@/lib/accounts';
 import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
@@ -22,8 +23,6 @@ export async function POST(req: NextRequest) {
 
     const db = new DBService();
     if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const gmailService = await GmailService.forUser(session.user.id, requestHeaders);
-    if (!gmailService) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
 
     const userLabels = await db.getUserLabels(session.user.id);
     const validLabelNames = userLabels.map((l) => l.name);
@@ -51,6 +50,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (dryRun) {
+      const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'read-only-audit');
+      if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+
       const conditions: Prisma.EmailMetadataWhereInput[] = [{ userId: session.user.id }];
       if (filterData.criteria.from) {
         conditions.push({ from: { contains: filterData.criteria.from } });
@@ -83,6 +85,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'settings-filter');
+    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+
+    const gmailService = new GmailService(permission.accessToken);
     const createdFilter = await gmailService.createFilter(filterData.criteria, actionPayload);
 
     return NextResponse.json({ success: true, filter: createdFilter, parsedAiData: filterData });

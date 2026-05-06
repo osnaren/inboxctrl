@@ -34,6 +34,28 @@ export interface GoogleAccessTokenResult {
   source: 'better-auth' | 'database';
 }
 
+export type GooglePermissionCheckResult =
+  | {
+      ok: true;
+      accessToken: string;
+      account: Account;
+      permission: ReturnType<typeof getPermissionSummary>;
+      token: GoogleAccessTokenResult;
+    }
+  | {
+      ok: false;
+      status: 400 | 403;
+      body: {
+        error: string;
+        requiredPermissionMode?: GmailPermissionModeId;
+        requiredPermissionModeLabel?: string;
+        currentPermissionMode?: GmailPermissionModeId | null;
+        currentPermissionModeLabel?: string | null;
+        grantedScopes?: string[];
+        missingScopes?: string[];
+      };
+    };
+
 const permissionModeOrder: GmailPermissionModeId[] = ['read-only-audit', 'organizer', 'settings-filter'];
 
 const toISOStringOrNull = (date: Date | string | null | undefined): string | null => {
@@ -146,6 +168,56 @@ export function serializeGoogleAccount(account: Account, refreshedToken?: Google
     scopes,
     permission: getPermissionSummary(scopes),
     capabilities: getCapabilitySummary(scopes),
+  };
+}
+
+export async function requireGoogleAccountPermission(
+  userId: string,
+  requestHeaders: AuthRequestHeaders,
+  requiredPermissionMode: GmailPermissionModeId
+): Promise<GooglePermissionCheckResult> {
+  const account = await getPrimaryGoogleAccount(userId);
+  if (!account) {
+    return {
+      ok: false,
+      status: 400,
+      body: { error: 'No Google account connected', requiredPermissionMode },
+    };
+  }
+
+  const token = await getGoogleAccessTokenForAccount(userId, requestHeaders, account);
+  if (!token) {
+    return {
+      ok: false,
+      status: 400,
+      body: { error: 'No usable Google access token', requiredPermissionMode },
+    };
+  }
+
+  const permission = getPermissionSummary(token.scopes);
+  const missingScopes = getMissingScopesForGmailPermissionMode(requiredPermissionMode, token.scopes);
+  if (missingScopes.length > 0) {
+    return {
+      ok: false,
+      status: 403,
+      body: {
+        error: 'Gmail permission mode required',
+        requiredPermissionMode,
+        requiredPermissionModeLabel: GMAIL_PERMISSION_MODES[requiredPermissionMode].label,
+        currentPermissionMode: permission.currentPermissionMode,
+        currentPermissionModeLabel: permission.currentPermissionModeLabel,
+        grantedScopes: permission.grantedScopes,
+        missingScopes,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    accessToken: token.accessToken,
+    account,
+    permission,
+    token,
   };
 }
 
