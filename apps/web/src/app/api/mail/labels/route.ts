@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireGoogleAccountPermission } from '@/lib/accounts';
 import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
@@ -31,9 +32,10 @@ export async function POST(req: NextRequest) {
     if (!name) return NextResponse.json({ error: 'Missing label name' }, { status: 400 });
 
     if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const gmailService = await GmailService.forUser(session.user.id, requestHeaders);
-    if (!gmailService) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
+    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'settings-filter');
+    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
+    const gmailService = new GmailService(permission.accessToken);
     const newRemoteLabel = await gmailService.createLabel(name, backgroundColor, textColor);
 
     if (newRemoteLabel.id && newRemoteLabel.name) {
@@ -70,9 +72,10 @@ export async function DELETE(req: NextRequest) {
 
     if (!label) return NextResponse.json({ error: 'Label not found' }, { status: 404 });
 
-    const gmailService = await GmailService.forUser(session.user.id, requestHeaders);
-    if (!gmailService) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
+    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'settings-filter');
+    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
+    const gmailService = new GmailService(permission.accessToken);
     await gmailService.deleteLabel(label.gmailId);
 
     await prisma.label.delete({ where: { id } });
@@ -98,9 +101,10 @@ export async function PATCH(req: NextRequest) {
 
     if (!label) return NextResponse.json({ error: 'Label not found' }, { status: 404 });
 
-    const gmailService = await GmailService.forUser(session.user.id, requestHeaders);
-    if (!gmailService) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
+    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'settings-filter');
+    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
+    const gmailService = new GmailService(permission.accessToken);
     const updatedRemoteLabel = await gmailService.updateLabel(label.gmailId, name, backgroundColor, textColor);
 
     if (updatedRemoteLabel.id && updatedRemoteLabel.name) {

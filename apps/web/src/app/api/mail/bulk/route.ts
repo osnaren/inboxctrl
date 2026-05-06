@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { requireGoogleAccountPermission } from '@/lib/accounts';
 import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
@@ -29,8 +30,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const gmailService = await GmailService.forUser(session.user.id, requestHeaders);
-    if (!gmailService) return NextResponse.json({ error: 'No Google account connected' }, { status: 400 });
+    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'organizer');
+    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
     // Validate that all messageIds belong to the current user
     const userEmails = await prisma.emailMetadata.findMany({
@@ -45,6 +46,8 @@ export async function POST(req: NextRequest) {
     if (validMessageIds.length !== messageIds.length) {
       return NextResponse.json({ error: 'One or more messages not found or unauthorized' }, { status: 403 });
     }
+
+    const gmailService = new GmailService(permission.accessToken);
 
     let successCount = 0;
     const rollbackMessages: { messageId: string; addedLabels: string[]; removedLabels: string[] }[] = [];

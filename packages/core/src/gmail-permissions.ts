@@ -260,6 +260,22 @@ export const CURRENT_BETTER_AUTH_SCOPE_COMPARISON = {
 
 const permissionModeStrength: GmailPermissionModeId[] = ['settings-filter', 'organizer', 'read-only-audit'];
 
+const gmailScopeImplications: Record<GmailScope, readonly GmailScope[]> = {
+  [GMAIL_SCOPES.fullMail]: [
+    GMAIL_SCOPES.fullMail,
+    GMAIL_SCOPES.settingsBasic,
+    GMAIL_SCOPES.modify,
+    GMAIL_SCOPES.readonly,
+    GMAIL_SCOPES.metadata,
+    GMAIL_SCOPES.labels,
+  ],
+  [GMAIL_SCOPES.modify]: [GMAIL_SCOPES.modify, GMAIL_SCOPES.readonly, GMAIL_SCOPES.metadata],
+  [GMAIL_SCOPES.readonly]: [GMAIL_SCOPES.readonly, GMAIL_SCOPES.metadata],
+  [GMAIL_SCOPES.metadata]: [GMAIL_SCOPES.metadata],
+  [GMAIL_SCOPES.settingsBasic]: [GMAIL_SCOPES.settingsBasic],
+  [GMAIL_SCOPES.labels]: [GMAIL_SCOPES.labels],
+};
+
 export const normalizeGoogleScopes = (scopes: string | readonly string[] | null | undefined): string[] => {
   if (!scopes) return [];
 
@@ -267,13 +283,19 @@ export const normalizeGoogleScopes = (scopes: string | readonly string[] | null 
   return [...new Set(rawScopes.map((scope) => scope.trim()).filter(Boolean))];
 };
 
+export const gmailScopeSatisfies = (grantedScope: string, requiredScope: GmailScope): boolean =>
+  (gmailScopeImplications[grantedScope as GmailScope] ?? []).includes(requiredScope);
+
+export const hasGmailScopeAccess = (
+  scopes: string | readonly string[] | null | undefined,
+  requiredScope: GmailScope
+): boolean => normalizeGoogleScopes(scopes).some((scope) => gmailScopeSatisfies(scope, requiredScope));
+
 export const getGrantedGmailPermissionModes = (
   scopes: string | readonly string[] | null | undefined
 ): GmailPermissionModeId[] => {
-  const grantedScopes = new Set(normalizeGoogleScopes(scopes));
-
   return permissionModeStrength.filter((modeId) =>
-    GMAIL_PERMISSION_MODES[modeId].minimumScopes.every((scope) => grantedScopes.has(scope))
+    GMAIL_PERMISSION_MODES[modeId].minimumScopes.every((scope) => hasGmailScopeAccess(scopes, scope))
   );
 };
 
@@ -285,9 +307,7 @@ export const getMissingScopesForGmailPermissionMode = (
   modeId: GmailPermissionModeId,
   scopes: string | readonly string[] | null | undefined
 ): GmailScope[] => {
-  const grantedScopes = new Set(normalizeGoogleScopes(scopes));
-
-  return GMAIL_PERMISSION_MODES[modeId].minimumScopes.filter((scope) => !grantedScopes.has(scope));
+  return GMAIL_PERMISSION_MODES[modeId].minimumScopes.filter((scope) => !hasGmailScopeAccess(scopes, scope));
 };
 
 export const hasGmailScope = (scopes: string | readonly string[] | null | undefined, scope: GmailScope): boolean =>
@@ -297,7 +317,5 @@ export const hasAnyGmailScope = (
   scopes: string | readonly string[] | null | undefined,
   requiredScopes: readonly GmailScope[]
 ): boolean => {
-  const grantedScopes = new Set(normalizeGoogleScopes(scopes));
-
-  return requiredScopes.some((scope) => grantedScopes.has(scope));
+  return requiredScopes.some((scope) => hasGmailScopeAccess(scopes, scope));
 };
