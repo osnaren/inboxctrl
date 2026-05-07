@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
 import { Button } from '@inboxctrl/ui/components/button';
+import { ScrollArea } from '@inboxctrl/ui/components/scroll-area';
 import { Inbox, FileText, Send, Star, Archive, Trash2, Tag, Plus, BrainCircuit, Activity, Filter } from 'lucide-react';
 
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 import type { InboxCtrlNavItem } from '@inboxctrl/plugin-sdk';

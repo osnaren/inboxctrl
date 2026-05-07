@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 
 import { Badge } from '@inboxctrl/ui/components/badge';
 import { Button } from '@inboxctrl/ui/components/button';
+import { ScrollArea } from '@inboxctrl/ui/components/scroll-area';
 import { Separator } from '@inboxctrl/ui/components/separator';
 import { Archive, BrainCircuit, Reply, Trash2, MoreVertical, RefreshCw } from 'lucide-react';
 
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { authClient } from '@/lib/auth-client';
 
 interface Email {
