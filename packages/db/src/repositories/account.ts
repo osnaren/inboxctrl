@@ -1,5 +1,5 @@
+import type { PrismaClient } from '../generated/client';
 import type { AccountRepository } from '../types';
-import type { PrismaClient } from '@prisma/client';
 
 /**
  * Prisma-backed account repository.

@@ -1,6 +1,6 @@
 import { DEMO_ACCESS_TOKEN, DEMO_ACCOUNT_ID, DEMO_EMAIL, DEMO_SCOPES, DEMO_USER_ID } from '@inboxctrl/demo-data';
 
-import type { Account } from '@prisma/client';
+import type { Account } from '@inboxctrl/db';
 
 export const DEMO_MODE_REAL_GMAIL_BLOCKED = 'DEMO_MODE_REAL_GMAIL_BLOCKED';
 

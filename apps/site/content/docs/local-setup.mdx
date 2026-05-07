@@ -13,12 +13,12 @@ description: Run the self-hosted product app from a checkout.
 
 ```bash
 pnpm install
-pnpm prisma:generate
-pnpm prisma:push
+pnpm db:generate
+pnpm db:push
 pnpm dev
 ```
 
-The product app runs from `apps/web`. The public site is separate and runs with `pnpm dev:site`.
+The product app runs from `apps/web`. The shared Prisma schema lives in `packages/db/prisma/schema.prisma`. The public site is separate and runs with `pnpm dev:site`.
 
 ## Environment
 

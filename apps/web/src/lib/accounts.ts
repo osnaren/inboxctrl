@@ -15,7 +15,7 @@ import { auth } from '@/lib/auth';
 import { createDemoAccount, demoUser, isDemoMode } from '@/lib/demo-mode';
 import { prisma } from '@/lib/prisma';
 
-import type { Account } from '@prisma/client';
+import type { Account } from '@inboxctrl/db';
 
 export const GOOGLE_PROVIDER_ID = 'google';
 

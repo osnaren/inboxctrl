@@ -10,7 +10,7 @@ import { DBService } from '@/lib/services/db.service';
 import { GmailService } from '@/lib/services/gmail.service';
 import { getCurrentUser } from '@/lib/session-user';
 
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@inboxctrl/db';
 import type { gmail_v1 } from 'googleapis';
 
 export async function POST(req: NextRequest) {

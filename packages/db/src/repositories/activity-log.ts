@@ -1,5 +1,5 @@
+import type { PrismaClient } from '../generated/client';
 import type { ActivityLogCreateData, ActivityLogRepository } from '../types';
-import type { PrismaClient } from '@prisma/client';
 
 /**
  * Prisma-backed activity log repository.

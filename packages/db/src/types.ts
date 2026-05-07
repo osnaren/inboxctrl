@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from './generated/client';
 
 // ---------------------------------------------------------------------------
 // Repository interfaces
@@ -13,46 +13,50 @@ import { PrismaClient } from '@prisma/client';
 // Re-export commonly used Prisma-generated model shapes as lighter aliases.
 // Consumers of @inboxctrl/db depend only on these interfaces.
 export type {
+  Account,
   Account as AccountRecord,
   EmailMetadata as EmailRecord,
   Label as LabelRecord,
   ActivityLog as ActivityLogRecord,
   User as UserRecord,
   Session as SessionRecord,
-} from '@prisma/client';
+  Prisma,
+} from './generated/client';
+
+export { PrismaClient } from './generated/client';
 
 // ---------------------------------------------------------------------------
 // Repository contracts
 // ---------------------------------------------------------------------------
 
 export interface AccountRepository {
-  findByProvider(userId: string, providerId?: string): Promise<import('@prisma/client').Account | null>;
-  findAllByUser(userId: string): Promise<import('@prisma/client').Account[]>;
+  findByProvider(userId: string, providerId?: string): Promise<import('./generated/client').Account | null>;
+  findAllByUser(userId: string): Promise<import('./generated/client').Account[]>;
 }
 
 export interface EmailRepository {
-  findByMessageId(messageId: string): Promise<import('@prisma/client').EmailMetadata | null>;
-  findByUser(userId: string, limit?: number): Promise<import('@prisma/client').EmailMetadata[]>;
-  findUnread(userId: string, limit?: number): Promise<import('@prisma/client').EmailMetadata[]>;
-  upsertFromSync(data: EmailUpsertData): Promise<import('@prisma/client').EmailMetadata>;
+  findByMessageId(messageId: string): Promise<import('./generated/client').EmailMetadata | null>;
+  findByUser(userId: string, limit?: number): Promise<import('./generated/client').EmailMetadata[]>;
+  findUnread(userId: string, limit?: number): Promise<import('./generated/client').EmailMetadata[]>;
+  upsertFromSync(data: EmailUpsertData): Promise<import('./generated/client').EmailMetadata>;
   countByFilter(userId: string, filter: EmailFilterQuery): Promise<number>;
   findByFilter(
     userId: string,
     filter: EmailFilterQuery,
     limit?: number
-  ): Promise<import('@prisma/client').EmailMetadata[]>;
+  ): Promise<import('./generated/client').EmailMetadata[]>;
 }
 
 export interface LabelRepository {
-  findByUser(userId: string): Promise<import('@prisma/client').Label[]>;
-  findByGmailId(gmailId: string): Promise<import('@prisma/client').Label | null>;
-  upsertFromSync(data: LabelUpsertData): Promise<import('@prisma/client').Label>;
+  findByUser(userId: string): Promise<import('./generated/client').Label[]>;
+  findByGmailId(gmailId: string): Promise<import('./generated/client').Label | null>;
+  upsertFromSync(data: LabelUpsertData): Promise<import('./generated/client').Label>;
   deleteByGmailId(gmailId: string): Promise<void>;
 }
 
 export interface ActivityLogRepository {
-  create(data: ActivityLogCreateData): Promise<import('@prisma/client').ActivityLog>;
-  findByUser(userId: string, limit?: number): Promise<import('@prisma/client').ActivityLog[]>;
+  create(data: ActivityLogCreateData): Promise<import('./generated/client').ActivityLog>;
+  findByUser(userId: string, limit?: number): Promise<import('./generated/client').ActivityLog[]>;
   markRolledBack(id: string): Promise<void>;
 }
 

@@ -5,7 +5,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session-user';
 
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@inboxctrl/db';
 
 /**
  * GET /api/mail/list

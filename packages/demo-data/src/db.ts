@@ -14,12 +14,12 @@ import {
   demoLabels,
 } from './fixtures';
 
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@inboxctrl/db';
 
 const currentFile = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(currentFile), '..', '..', '..');
 const webEnvPath = path.join(repoRoot, 'apps', 'web', '.env');
-const defaultDemoDbPath = path.join(repoRoot, 'apps', 'web', 'prisma', 'dev.db').replaceAll(path.sep, '/');
+const defaultDemoDbPath = path.join(repoRoot, 'packages', 'db', 'prisma', 'dev.db').replaceAll(path.sep, '/');
 
 if (existsSync(webEnvPath)) {
   loadEnv({ path: webEnvPath });
@@ -30,7 +30,7 @@ if (!process.env.DATABASE_URL || process.env.DATABASE_URL === 'file:./dev.db') {
 }
 
 const getPrisma = async (): Promise<PrismaClient> => {
-  const { PrismaClient } = await import('@prisma/client');
+  const { PrismaClient } = await import('@inboxctrl/db');
   return new PrismaClient();
 };
 

@@ -15,14 +15,24 @@
     "lint": "pnpm -r --if-present lint",
     "typecheck": "tsc -b && pnpm -r --if-present typecheck",
     "check:public-boundary": "tsx scripts/check-public-boundary.ts",
+    "db:use": "tsx packages/db/scripts/use-provider.ts",
+    "db:use:sqlite": "pnpm db:use sqlite",
+    "db:use:postgres": "pnpm db:use postgres",
+    "db:generate": "pnpm --filter @inboxctrl/db generate",
+    "db:push": "dotenv -e apps/web/.env -- prisma db push --schema packages/db/prisma/schema.prisma",
+    "db:migrate:dev": "dotenv -e apps/web/.env -- prisma migrate dev --schema packages/db/prisma/schema.prisma",
+    "db:migrate:deploy": "dotenv -e apps/web/.env -- prisma migrate deploy --schema packages/db/prisma/schema.prisma",
+    "db:studio": "dotenv -e apps/web/.env -- prisma studio --schema packages/db/prisma/schema.prisma",
+    "db:check": "tsx packages/db/scripts/check-db-profile.ts",
     "seed:demo": "cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/demo-data seed",
     "demo:reset": "cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/demo-data reset",
     "demo": "pnpm demo:reset && pnpm seed:demo && cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/web dev",
     "test:demo-guard": "cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/web exec tsx src/lib/services/gmail.service.demo.test.ts",
     "format": "prettier --write .",
     "spell": "cspell \"**\"",
-    "prisma:generate": "pnpm --filter @inboxctrl/web prisma:generate",
-    "prisma:push": "pnpm --filter @inboxctrl/web prisma:push",
+    "prisma:generate": "pnpm db:generate",
+    "prisma:push": "pnpm db:push",
+    "postinstall": "pnpm db:generate",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -32,6 +42,7 @@
   "devDependencies": {
     "cross-env": "^10.1.0",
     "cspell": "^10.0.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "eslint-plugin-import": "^2.32.0",
@@ -39,6 +50,7 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "prisma": "^5.22.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   }

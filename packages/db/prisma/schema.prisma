@@ -1,0 +1,156 @@
+// Auto-generated. Do not edit.
+// Run `pnpm db:use <provider>` to change DB provider.
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  accountId         String
+  providerId        String
+  accessToken       String? 
+  refreshToken      String? 
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope             String?
+  idToken           String?
+  password          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  userId       String
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String?         @unique
+  emailVerified Boolean         @default(false)
+  image         String?
+  lastSyncAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  emails        EmailMetadata[]
+  labels        Label[]
+  activityLogs  ActivityLog[]
+  settings      UserSettings?
+
+  @@map("user")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+model EmailMetadata {
+  id          String   @id @default(cuid()) // Our internal ID
+  messageId   String   @unique // Gmail's message ID
+  threadId    String // Gmail's thread ID
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  from        String
+  to          String
+  subject     String
+  snippet     String?  
+  sender      String?  // Extracted email address from "from" field (e.g., "noreply@github.com")
+  date        DateTime
+  isUnread    Boolean  @default(false)
+  isStarred   Boolean  @default(false)
+  hasAttach   Boolean  @default(false)
+  labelIds    String   // Stored as JSON string due to sqlite limitation
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId, date(sort: Desc)])
+  @@index([userId, sender])
+  @@index([userId, isUnread])
+  @@index([threadId])
+}
+
+model Label {
+  id          String   @id @default(cuid())
+  gmailId     String   @unique // Gmail's label ID
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  type        String   // "system" or "user"
+  color       String?  // hex code or predefined Gmail color
+
+  @@index([userId])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String   // e.g., "ARCHIVE", "LABEL", "TRASH", "SYNC_COMPLETED", "AI_SUGGESTION_GENERATED"
+  description String   // e.g., "Archived 301 emails from github.com"
+  metadata    String?  // JSON string containing previous state for rollback (e.g., message IDs, previous label IDs)
+  isRolledBack Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model UserSettings {
+  id                          String   @id @default(cuid())
+  userId                      String   @unique
+  user                        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // AI settings (OSN-67)
+  aiEnabled                   Boolean  @default(false)
+  aiProviderId                String   @default("openai")
+  aiModel                     String   @default("gpt-4o-mini")
+  aiApiKeyEncrypted           String?  // Encrypted BYOK API key
+  aiApiKeySet                 Boolean  @default(false)
+
+  // Privacy settings (OSN-70)
+  allowExternalAi             Boolean  @default(false)
+  allowFullBodyFetch          Boolean  @default(false)
+  allowDestructiveActions     Boolean  @default(false)
+  requireBulkConfirmation     Boolean  @default(true)
+  allowAiOutputStorage        Boolean  @default(false)
+  metadataCacheRetentionDays  Int      @default(90)
+  activityLogRetentionDays    Int      @default(365)
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@map("user_settings")
+}

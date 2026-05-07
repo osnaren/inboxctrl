@@ -8,9 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src next.config.ts postcss.config.mjs --max-warnings=0",
-    "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.74",

@@ -2,7 +2,6 @@
   "name": "@inboxctrl/db",
   "version": "0.1.0",
   "license": "AGPL-3.0-or-later",
-  "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -10,10 +9,17 @@
       "default": "./src/index.ts"
     }
   },
-  "peerDependencies": {
-    "@prisma/client": "^5.22.0"
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  },
+  "prisma": {
+    "schema": "./prisma/schema.prisma"
   },
   "scripts": {
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "generate": "prisma generate --schema ./prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "prisma": "5.22.0"
   }
 }

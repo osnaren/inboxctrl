@@ -57,12 +57,12 @@ Install and prepare the app:
 ```bash
 corepack enable
 pnpm install
-pnpm prisma:generate
-pnpm prisma:push
+pnpm db:generate
+pnpm db:push
 pnpm dev
 ```
 
-The web app runs from `apps/web` and uses `apps/web/prisma/schema.prisma`. Keep local secrets in `apps/web/.env`.
+The web app runs from `apps/web`, while the shared Prisma schema now lives at `packages/db/prisma/schema.prisma`. Keep local secrets in `apps/web/.env`.
 
 Open [http://localhost:3000](http://localhost:3000).
 
@@ -80,6 +80,8 @@ OPENAI_API_KEY=""
 ANTHROPIC_API_KEY=""
 INBOXCTRL_PLUGINS=""
 ```
+
+With the default SQLite profile, `file:./dev.db` resolves under `packages/db/prisma/dev.db`.
 
 For local Google OAuth, create a Web application OAuth client in Google Cloud and add this exact authorized redirect URI:
 

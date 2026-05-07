@@ -1,5 +1,5 @@
+import type { PrismaClient, Prisma } from '../generated/client';
 import type { EmailFilterQuery, EmailRepository, EmailUpsertData } from '../types';
-import type { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * Prisma-backed email metadata repository.

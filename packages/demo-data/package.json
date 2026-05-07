@@ -16,6 +16,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@inboxctrl/db": "workspace:*",
     "@prisma/client": "^5.22.0",
     "dotenv": "^17.4.2"
   },

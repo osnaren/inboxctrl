@@ -1,5 +1,6 @@
 // Types & contracts
 export type {
+  Account,
   AccountRecord,
   AccountRepository,
   ActivityLogCreateData,
@@ -15,9 +16,10 @@ export type {
   SessionRecord,
   SyncStateRepository,
   UserRecord,
+  Prisma,
 } from './types';
 
-export { createPrismaClient } from './types';
+export { createPrismaClient, PrismaClient } from './types';
 
 // Repository implementations
 export { PrismaAccountRepository } from './repositories/account';
