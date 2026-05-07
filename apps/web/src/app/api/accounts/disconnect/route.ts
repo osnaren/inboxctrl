@@ -7,9 +7,9 @@ import {
   revokeGoogleOAuthToken,
   serializeGoogleAccount,
 } from '@/lib/accounts';
-import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/session-user';
 
 interface DisconnectRequestBody {
   accountId?: string;
@@ -27,24 +27,24 @@ const readDisconnectBody = async (req: NextRequest): Promise<DisconnectRequestBo
 export async function POST(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await readDisconnectBody(req);
-    const account = await getPrimaryGoogleAccount(session.user.id, body.accountId);
+    const account = await getPrimaryGoogleAccount(user.id, body.accountId);
     if (!account) return NextResponse.json({ error: 'No Google account connected' }, { status: 404 });
 
-    const token = await getGoogleAccessTokenForAccount(session.user.id, requestHeaders, account);
+    const token = await getGoogleAccessTokenForAccount(user.id, requestHeaders, account);
     const revocation =
       body.revokeGoogleGrant === false || !token?.accessToken
         ? { attempted: false, ok: null, status: null }
         : await revokeGoogleOAuthToken(token.accessToken);
 
     const [deletedEmails, deletedLabels, deletedActivityLogs, deletedAccounts] = await prisma.$transaction([
-      prisma.emailMetadata.deleteMany({ where: { userId: session.user.id } }),
-      prisma.label.deleteMany({ where: { userId: session.user.id } }),
-      prisma.activityLog.deleteMany({ where: { userId: session.user.id } }),
-      prisma.account.deleteMany({ where: { id: account.id, userId: session.user.id } }),
+      prisma.emailMetadata.deleteMany({ where: { userId: user.id } }),
+      prisma.label.deleteMany({ where: { userId: user.id } }),
+      prisma.activityLog.deleteMany({ where: { userId: user.id } }),
+      prisma.account.deleteMany({ where: { id: account.id, userId: user.id } }),
     ]);
 
     return NextResponse.json({

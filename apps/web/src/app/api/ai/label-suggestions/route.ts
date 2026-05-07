@@ -2,11 +2,13 @@ import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { AiService } from '@inboxctrl/ai';
+import { demoAi } from '@inboxctrl/demo-data';
 
 import { decryptAiApiKey, getEnvApiKey } from '@/lib/ai-secrets';
-import { auth } from '@/lib/auth';
+import { isDemoMode } from '@/lib/demo-mode';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/session-user';
 
 /**
  * POST /api/ai/label-suggestions
@@ -24,8 +26,9 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const requestHeaders = await headers();
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { messageIds } = await req.json();
     if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
@@ -36,9 +39,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Maximum 25 messages per request' }, { status: 400 });
     }
 
+    if (isDemoMode()) {
+      const requestedMessageIds = [...new Set(messageIds.filter((id): id is string => typeof id === 'string'))];
+      const suggestions = demoAi.labelSuggestions
+        .filter((suggestion) => requestedMessageIds.includes(suggestion.messageId))
+        .map((suggestion) => ({
+          ...suggestion,
+          labelId: `Label_${suggestion.suggestedLabel.toLowerCase()}`,
+          labelName: suggestion.suggestedLabel,
+        }));
+
+      return NextResponse.json({
+        suggestions,
+        metadata: {
+          processedCount: requestedMessageIds.length,
+          availableLabels: ['Receipts', 'GitHub', 'Travel'],
+          provider: 'demo',
+          transient: true,
+          demoMode: true,
+        },
+      });
+    }
+
     // Check AI settings
     const settings = await prisma.userSettings.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!settings?.aiEnabled) {
@@ -60,7 +85,7 @@ export async function POST(req: NextRequest) {
     // Fetch minimal metadata for the requested messages (never full body)
     const emails = await prisma.emailMetadata.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         messageId: { in: requestedMessageIds },
       },
       select: {
@@ -77,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     // Get user's current labels for context
     const userLabels = await prisma.label.findMany({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
       select: { name: true, gmailId: true },
     });
 
@@ -126,7 +151,7 @@ export async function POST(req: NextRequest) {
     // Record AI activity (transient - no output stored unless allowAiOutputStorage)
     await prisma.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         action: 'AI_SUGGESTION_GENERATED',
         description: `Generated label suggestions for ${emails.length} email${emails.length !== 1 ? 's' : ''}`,
         metadata: settings.allowAiOutputStorage

@@ -10,22 +10,42 @@ import { headers } from 'next/headers';
 import { GmailClient, type GmailLabelInfo } from '@inboxctrl/gmail';
 
 import { getGoogleAccessTokenForAccount } from '@/lib/accounts';
+import { DemoGmailService } from '@/lib/demo/demo-gmail.service';
+import { DEMO_MODE_REAL_GMAIL_BLOCKED, isDemoMode } from '@/lib/demo-mode';
 
 import type { gmail_v1 } from 'googleapis';
 
 type AuthRequestHeaders = Awaited<ReturnType<typeof headers>>;
+type GmailClientLike = GmailClient | DemoGmailService;
+
+export const createRealGmailClient = (accessToken: string) => {
+  if (isDemoMode()) {
+    throw new Error(DEMO_MODE_REAL_GMAIL_BLOCKED);
+  }
+
+  return new GmailClient({ accessToken });
+};
 
 export class GmailService {
-  private client: GmailClient;
+  private client: GmailClientLike;
 
   constructor(accessToken: string) {
-    this.client = new GmailClient({ accessToken });
+    if (isDemoMode()) {
+      this.client = new DemoGmailService();
+      return;
+    }
+
+    this.client = createRealGmailClient(accessToken);
   }
 
   /**
    * Create a GmailService for the given user's primary Google account.
    */
   static async forUser(userId: string, requestHeaders: AuthRequestHeaders) {
+    if (isDemoMode()) {
+      return new GmailService('demo-access-token');
+    }
+
     const googleAccess = await getGoogleAccessTokenForAccount(userId, requestHeaders);
     if (!googleAccess) return null;
 

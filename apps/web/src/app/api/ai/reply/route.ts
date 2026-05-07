@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { demoAi } from '@inboxctrl/demo-data';
+
+import { isDemoMode } from '@/lib/demo-mode';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { fetchFullBody, resolveAiContext } from '@/lib/services/ai-context';
@@ -21,15 +24,33 @@ import { fetchFullBody, resolveAiContext } from '@/lib/services/ai-context';
  */
 export async function POST(req: NextRequest) {
   try {
-    const resolved = await resolveAiContext();
-    if ('error' in resolved) return resolved.error;
-
-    const { context } = resolved;
-    const { messageId, instruction, tone } = await req.json();
+    const { instruction, messageId, tone } = await req.json();
 
     if (!messageId || typeof messageId !== 'string') {
       return NextResponse.json({ error: 'Missing messageId' }, { status: 400 });
     }
+
+    if (isDemoMode()) {
+      return NextResponse.json({
+        reply:
+          demoAi.smartReplies[messageId as keyof typeof demoAi.smartReplies] ??
+          'Thanks for the update. I will review this and follow up shortly.',
+        metadata: {
+          messageId,
+          provider: 'demo',
+          transient: true,
+          demoMode: true,
+          instruction: instruction ?? null,
+          tone: tone ?? null,
+          note: 'No Gmail draft was created. Copy and paste this reply into your email client.',
+        },
+      });
+    }
+
+    const resolved = await resolveAiContext();
+    if ('error' in resolved) return resolved.error;
+
+    const { context } = resolved;
 
     // Verify ownership
     const email = await prisma.emailMetadata.findFirst({

@@ -2,11 +2,11 @@ import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
-import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { ActionEngine, type ActionType } from '@/lib/services/action-engine';
 import { GmailService } from '@/lib/services/gmail.service';
+import { getCurrentUser } from '@/lib/session-user';
 
 const VALID_ACTIONS: ActionType[] = [
   'archive',
@@ -22,8 +22,8 @@ const VALID_ACTIONS: ActionType[] = [
 export async function POST(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { messageIds, action, labelId } = await req.json();
     if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
@@ -41,14 +41,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Missing labelId for '${action}' action` }, { status: 400 });
     }
 
-    if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'organizer');
+    const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'organizer');
     if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
     // Validate that all messageIds belong to the current user
     const userEmails = await prisma.emailMetadata.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         messageId: { in: messageIds },
       },
       select: { messageId: true },
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     if ((action === 'apply-label' || action === 'remove-label') && labelId) {
       const label = await prisma.label.findFirst({
-        where: { userId: session.user.id, gmailId: labelId },
+        where: { userId: user.id, gmailId: labelId },
         select: { gmailId: true },
       });
 
@@ -71,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     const gmailService = new GmailService(permission.accessToken);
-    const engine = new ActionEngine(gmailService, session.user.id);
+    const engine = new ActionEngine(gmailService, user.id);
 
     // Safety check for destructive actions
     const safetyCheck = await engine.checkSafety(action);

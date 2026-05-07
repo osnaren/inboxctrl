@@ -12,6 +12,7 @@ import {
 } from '@inboxctrl/core';
 
 import { auth } from '@/lib/auth';
+import { createDemoAccount, demoUser, isDemoMode } from '@/lib/demo-mode';
 import { prisma } from '@/lib/prisma';
 
 import type { Account } from '@prisma/client';
@@ -97,6 +98,10 @@ const getCapabilitySummary = (scopes: string | readonly string[] | null | undefi
 });
 
 export async function getConnectedGoogleAccounts(userId: string) {
+  if (isDemoMode() && userId === demoUser.id) {
+    return [createDemoAccount()];
+  }
+
   return prisma.account.findMany({
     where: { userId, providerId: GOOGLE_PROVIDER_ID },
     orderBy: { createdAt: 'asc' },
@@ -104,6 +109,11 @@ export async function getConnectedGoogleAccounts(userId: string) {
 }
 
 export async function getPrimaryGoogleAccount(userId: string, accountId?: string) {
+  if (isDemoMode() && userId === demoUser.id) {
+    const account = createDemoAccount();
+    return accountId && accountId !== account.accountId ? null : account;
+  }
+
   return prisma.account.findFirst({
     where: { userId, providerId: GOOGLE_PROVIDER_ID, ...(accountId ? { accountId } : {}) },
     orderBy: { createdAt: 'asc' },
@@ -115,6 +125,17 @@ export async function getGoogleAccessTokenForAccount(
   requestHeaders: AuthRequestHeaders,
   account?: Account | null
 ): Promise<GoogleAccessTokenResult | null> {
+  if (isDemoMode() && userId === demoUser.id) {
+    const demoAccount = account ?? createDemoAccount();
+
+    return {
+      accessToken: demoAccount.accessToken ?? 'demo-access-token',
+      accessTokenExpiresAt: null,
+      scopes: normalizeGoogleScopes(demoAccount.scope),
+      source: 'database',
+    };
+  }
+
   const googleAccount = account ?? (await getPrimaryGoogleAccount(userId));
   if (!googleAccount) return null;
 
@@ -176,6 +197,25 @@ export async function requireGoogleAccountPermission(
   requestHeaders: AuthRequestHeaders,
   requiredPermissionMode: GmailPermissionModeId
 ): Promise<GooglePermissionCheckResult> {
+  if (isDemoMode() && userId === demoUser.id) {
+    const account = createDemoAccount();
+    const token = await getGoogleAccessTokenForAccount(userId, requestHeaders, account);
+    const permission = getPermissionSummary(token?.scopes ?? account.scope);
+
+    return {
+      ok: true,
+      accessToken: token?.accessToken ?? 'demo-access-token',
+      account,
+      permission,
+      token: token ?? {
+        accessToken: 'demo-access-token',
+        accessTokenExpiresAt: null,
+        scopes: normalizeGoogleScopes(account.scope),
+        source: 'database',
+      },
+    };
+  }
+
   const account = await getPrimaryGoogleAccount(userId);
   if (!account) {
     return {
@@ -222,6 +262,25 @@ export async function requireGoogleAccountPermission(
 }
 
 export async function getGoogleAccountStatus(user: SessionUser, requestHeaders: AuthRequestHeaders) {
+  if (isDemoMode() && user.id === demoUser.id) {
+    const account = createDemoAccount();
+    const token = await getGoogleAccessTokenForAccount(user.id, requestHeaders, account);
+    const serializedAccount = serializeGoogleAccount(account, token);
+
+    return {
+      connected: true,
+      connectedEmail: demoUser.email,
+      syncReady: true,
+      tokenReady: true,
+      tokenSource: 'database',
+      account: serializedAccount,
+      accounts: [serializedAccount],
+      requiredPermissionLevel: 'Demo mode',
+      user: demoUser,
+      demoMode: true,
+    };
+  }
+
   const accounts = await getConnectedGoogleAccounts(user.id);
   const primaryAccount = accounts[0] ?? null;
   const refreshedToken = primaryAccount
@@ -253,6 +312,14 @@ export async function getGoogleAccountStatus(user: SessionUser, requestHeaders: 
 }
 
 export async function revokeGoogleOAuthToken(token: string) {
+  if (isDemoMode() && token === createDemoAccount().accessToken) {
+    return {
+      attempted: false,
+      ok: null,
+      status: null,
+    };
+  }
+
   const response = await fetch('https://oauth2.googleapis.com/revoke', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

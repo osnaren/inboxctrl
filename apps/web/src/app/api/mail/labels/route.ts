@@ -2,19 +2,20 @@ import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
-import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { DBService } from '@/lib/services/db.service';
 import { GmailService } from '@/lib/services/gmail.service';
+import { getCurrentUser } from '@/lib/session-user';
 
 export async function GET(_req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const requestHeaders = await headers();
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const db = new DBService();
-    const labels = await db.getUserLabels(session.user.id);
+    const labels = await db.getUserLabels(user.id);
 
     return NextResponse.json({ labels });
   } catch (error: unknown) {
@@ -25,14 +26,13 @@ export async function GET(_req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { name, backgroundColor, textColor } = await req.json();
     if (!name) return NextResponse.json({ error: 'Missing label name' }, { status: 400 });
 
-    if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'settings-filter');
+    const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'settings-filter');
     if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
     const gmailService = new GmailService(permission.accessToken);
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       const savedLabel = await prisma.label.create({
         data: {
           gmailId: newRemoteLabel.id,
-          userId: session.user.id,
+          userId: user.id,
           name: newRemoteLabel.name,
           type: 'user',
           color: backgroundColor || null,
@@ -60,19 +60,19 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await req.json();
     if (!id) return NextResponse.json({ error: 'Missing label id' }, { status: 400 });
 
     const label = await prisma.label.findUnique({
-      where: { id, userId: session.user.id },
+      where: { id, userId: user.id },
     });
 
     if (!label) return NextResponse.json({ error: 'Label not found' }, { status: 404 });
 
-    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'settings-filter');
+    const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'settings-filter');
     if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
     const gmailService = new GmailService(permission.accessToken);
@@ -89,19 +89,19 @@ export async function DELETE(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id, name, backgroundColor, textColor } = await req.json();
     if (!id || !name) return NextResponse.json({ error: 'Missing label id or name' }, { status: 400 });
 
     const label = await prisma.label.findUnique({
-      where: { id, userId: session.user.id },
+      where: { id, userId: user.id },
     });
 
     if (!label) return NextResponse.json({ error: 'Label not found' }, { status: 404 });
 
-    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'settings-filter');
+    const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'settings-filter');
     if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
     const gmailService = new GmailService(permission.accessToken);

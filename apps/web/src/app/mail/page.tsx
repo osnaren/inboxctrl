@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
+import { Badge } from '@inboxctrl/ui/components/badge';
+import { Button } from '@inboxctrl/ui/components/button';
+import { Separator } from '@inboxctrl/ui/components/separator';
 import { Archive, BrainCircuit, Reply, Trash2, MoreVertical, RefreshCw } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { authClient } from '@/lib/auth-client';
 
 interface Email {

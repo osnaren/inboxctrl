@@ -1,20 +1,28 @@
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { demoAi } from '@inboxctrl/demo-data';
+
 import { decryptAiApiKey, getEnvApiKey } from '@/lib/ai-secrets';
-import { auth } from '@/lib/auth';
+import { isDemoMode } from '@/lib/demo-mode';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { AIService } from '@/lib/services/ai.service';
 import { DBService } from '@/lib/services/db.service';
+import { getCurrentUser } from '@/lib/session-user';
 
 export async function POST(_req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const requestHeaders = await headers();
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (isDemoMode()) {
+      return NextResponse.json({ triageResults: demoAi.labelSuggestions, demoMode: true });
+    }
 
     const settings = await prisma.userSettings.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!settings?.aiEnabled) {
@@ -38,13 +46,13 @@ export async function POST(_req: NextRequest) {
     }
 
     const db = new DBService();
-    const emailsToTriage = await db.getUnreadEmails(session.user.id, 10);
+    const emailsToTriage = await db.getUnreadEmails(user.id, 10);
 
     if (emailsToTriage.length === 0) {
       return NextResponse.json({ triageResults: [], message: 'No unread emails to triage.' });
     }
 
-    const userLabels = await db.getUserLabels(session.user.id);
+    const userLabels = await db.getUserLabels(user.id);
     const validLabelNames = userLabels.map((l) => l.name);
 
     const promptEmails = emailsToTriage.map((e) => ({

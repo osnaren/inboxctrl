@@ -6,9 +6,9 @@ import { GMAIL_SCOPES, hasGmailScopeAccess } from '@inboxctrl/core';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
 import { decryptAiApiKey, getEnvApiKey } from '@/lib/ai-secrets';
-import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { GmailService } from '@/lib/services/gmail.service';
+import { getCurrentUser } from '@/lib/session-user';
 
 /**
  * Shared helpers for AI endpoints that need full body access.
@@ -32,13 +32,13 @@ export interface AiRequestContext {
  */
 export async function resolveAiContext(): Promise<{ context: AiRequestContext } | { error: NextResponse }> {
   const requestHeaders = await headers();
-  const session = await auth.api.getSession({ headers: requestHeaders });
-  if (!session?.user) {
+  const user = await getCurrentUser(requestHeaders);
+  if (!user) {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
 
   const settings = await prisma.userSettings.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
   });
 
   if (!settings?.aiEnabled) {
@@ -79,7 +79,7 @@ export async function resolveAiContext(): Promise<{ context: AiRequestContext } 
   }
 
   // Gmail access for fetching full body
-  const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'read-only-audit');
+  const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'read-only-audit');
   if (!permission.ok) {
     return { error: NextResponse.json(permission.body, { status: permission.status }) };
   }
@@ -108,7 +108,7 @@ export async function resolveAiContext(): Promise<{ context: AiRequestContext } 
 
   return {
     context: {
-      userId: session.user.id,
+      userId: user.id,
       aiService,
       gmailService,
       settings: {

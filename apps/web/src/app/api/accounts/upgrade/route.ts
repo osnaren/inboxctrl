@@ -8,7 +8,8 @@ import {
 } from '@inboxctrl/core';
 
 import { getGoogleAccessTokenForAccount, getPrimaryGoogleAccount } from '@/lib/accounts';
-import { auth } from '@/lib/auth';
+import { isDemoMode } from '@/lib/demo-mode';
+import { getCurrentUser } from '@/lib/session-user';
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -16,8 +17,8 @@ export async function POST(request: Request) {
 
   const requestHeaders = await headers();
 
-  const session = await auth.api.getSession({ headers: requestHeaders });
-  if (!session?.user) {
+  const user = await getCurrentUser(requestHeaders);
+  if (!user) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -32,7 +33,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const account = await getPrimaryGoogleAccount(session.user.id);
+  if (isDemoMode()) {
+    return Response.json({
+      accountConnected: true,
+      currentMode: mode,
+      currentModeLabel: GMAIL_PERMISSION_MODES[mode].label,
+      requestedMode: mode,
+      requestedModeLabel: GMAIL_PERMISSION_MODES[mode].label,
+      scopes: getScopesWithSignInForPermissionMode(mode),
+      upgradeUrl: null,
+      demoMode: true,
+    });
+  }
+
+  const account = await getPrimaryGoogleAccount(user.id);
   if (!account) {
     return Response.json(
       {
@@ -43,7 +57,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const token = await getGoogleAccessTokenForAccount(session.user.id, requestHeaders, account);
+  const token = await getGoogleAccessTokenForAccount(user.id, requestHeaders, account);
   if (!token) {
     return Response.json(
       {

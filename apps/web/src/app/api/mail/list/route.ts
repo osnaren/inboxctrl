@@ -1,9 +1,9 @@
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/session-user';
 
 import type { Prisma } from '@prisma/client';
 
@@ -27,15 +27,14 @@ import type { Prisma } from '@prisma/client';
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const requestHeaders = await headers();
+    const currentUser = await getCurrentUser(requestHeaders);
 
-    if (!session || !session.user) {
+    if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = currentUser.id;
     const { searchParams } = req.nextUrl;
 
     // Parse query params
@@ -99,7 +98,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Get last sync time for cache freshness
-    const user = await prisma.user.findUnique({
+    const cacheUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { lastSyncAt: true },
     });
@@ -126,9 +125,9 @@ export async function GET(req: NextRequest) {
         hasMore: page * pageSize < totalCount,
       },
       cache: {
-        lastSyncAt: user?.lastSyncAt?.toISOString() ?? null,
-        stale: user?.lastSyncAt
-          ? Date.now() - user.lastSyncAt.getTime() > 5 * 60 * 1000 // stale if > 5 min
+        lastSyncAt: cacheUser?.lastSyncAt?.toISOString() ?? null,
+        stale: cacheUser?.lastSyncAt
+          ? Date.now() - cacheUser.lastSyncAt.getTime() > 5 * 60 * 1000 // stale if > 5 min
           : true,
       },
     });

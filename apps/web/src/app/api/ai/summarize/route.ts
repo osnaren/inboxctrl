@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { demoAi } from '@inboxctrl/demo-data';
+
+import { isDemoMode } from '@/lib/demo-mode';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { fetchFullBody, resolveAiContext } from '@/lib/services/ai-context';
@@ -16,15 +19,32 @@ import { fetchFullBody, resolveAiContext } from '@/lib/services/ai-context';
  */
 export async function POST(req: NextRequest) {
   try {
-    const resolved = await resolveAiContext();
-    if ('error' in resolved) return resolved.error;
-
-    const { context } = resolved;
     const { messageId } = await req.json();
 
     if (!messageId || typeof messageId !== 'string') {
       return NextResponse.json({ error: 'Missing messageId' }, { status: 400 });
     }
+
+    if (isDemoMode()) {
+      const summary = demoAi.summaries[messageId as keyof typeof demoAi.summaries] ?? [
+        'Demo summary generated from deterministic fixture data.',
+      ];
+
+      return NextResponse.json({
+        summary,
+        metadata: {
+          messageId,
+          provider: 'demo',
+          transient: true,
+          demoMode: true,
+        },
+      });
+    }
+
+    const resolved = await resolveAiContext();
+    if ('error' in resolved) return resolved.error;
+
+    const { context } = resolved;
 
     // Verify the message belongs to the user
     const email = await prisma.emailMetadata.findFirst({

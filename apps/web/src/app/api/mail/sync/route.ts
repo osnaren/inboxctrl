@@ -2,21 +2,20 @@ import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
-import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { DBService } from '@/lib/services/db.service';
 import { GmailService } from '@/lib/services/gmail.service';
+import { getCurrentUser } from '@/lib/session-user';
 
 export async function POST(_req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const db = new DBService();
-    if (!session?.user?.id) return new Response('Unauthorized', { status: 401 });
-    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'read-only-audit');
+    const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'read-only-audit');
     if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
     const gmailService = new GmailService(permission.accessToken);
@@ -28,7 +27,7 @@ export async function POST(_req: NextRequest) {
         update: { name: label.name, type: label.type || 'system', color: label.color || null },
         create: {
           gmailId: label.id,
-          userId: session.user.id,
+          userId: user.id,
           name: label.name,
           type: label.type || 'system',
           color: label.color || null,
@@ -58,7 +57,7 @@ export async function POST(_req: NextRequest) {
         data: {
           messageId: fullMsg.id as string,
           threadId: fullMsg.threadId as string,
-          userId: session.user.id,
+          userId: user.id,
           from: extractedHeaders.from,
           to: extractedHeaders.to,
           subject: extractedHeaders.subject,
@@ -75,7 +74,7 @@ export async function POST(_req: NextRequest) {
 
     // Update last sync timestamp for cache freshness
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: user.id },
       data: { lastSyncAt: new Date() },
     });
 

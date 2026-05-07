@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AiService } from '@inboxctrl/ai';
 
 import { decryptAiApiKey, getEnvApiKey } from '@/lib/ai-secrets';
-import { auth } from '@/lib/auth';
+import { isDemoMode } from '@/lib/demo-mode';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/session-user';
 
 /**
  * POST /api/settings/ai/test
@@ -17,11 +18,22 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(_req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser(await headers());
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (isDemoMode()) {
+      return NextResponse.json({
+        success: true,
+        provider: 'demo',
+        model: 'deterministic-demo',
+        latencyMs: 0,
+        response: 'OK',
+        demoMode: true,
+      });
+    }
 
     const settings = await prisma.userSettings.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: user.id },
     });
 
     if (!settings?.aiEnabled) {

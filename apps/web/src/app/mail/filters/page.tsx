@@ -2,13 +2,12 @@
 
 import { useState } from 'react';
 
+import { Alert, AlertDescription, AlertTitle } from '@inboxctrl/ui/components/alert';
+import { Badge } from '@inboxctrl/ui/components/badge';
+import { Button } from '@inboxctrl/ui/components/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@inboxctrl/ui/components/card';
+import { Textarea } from '@inboxctrl/ui/components/textarea';
 import { AlertCircle, BrainCircuit, CheckCircle2, Filter, RefreshCw } from 'lucide-react';
-
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 
 interface ParsedFilterData {
   criteria?: Record<string, string | undefined>;

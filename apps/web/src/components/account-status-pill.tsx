@@ -1,18 +1,18 @@
 import { headers } from 'next/headers';
 
+import { Badge } from '@inboxctrl/ui/components/badge';
 import { AlertCircle, ShieldCheck } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { getGoogleAccountStatus } from '@/lib/accounts';
-import { auth } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/session-user';
 import { cn } from '@/lib/utils';
 
 export async function AccountStatusPill() {
   const requestHeaders = await headers();
-  const session = await auth.api.getSession({ headers: requestHeaders });
-  if (!session?.user) return null;
+  const user = await getCurrentUser(requestHeaders);
+  if (!user) return null;
 
-  const status = await getGoogleAccountStatus(session.user, requestHeaders);
+  const status = await getGoogleAccountStatus(user, requestHeaders);
   const Icon = status.syncReady ? ShieldCheck : AlertCircle;
   const label = status.account?.permission.currentPermissionModeLabel ?? 'Disconnected';
 

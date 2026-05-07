@@ -2,11 +2,11 @@ import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
-import { auth } from '@/lib/auth';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { ActionEngine } from '@/lib/services/action-engine';
 import { GmailService } from '@/lib/services/gmail.service';
+import { getCurrentUser } from '@/lib/session-user';
 
 /**
  * POST /api/ai/apply-suggestions
@@ -24,8 +24,8 @@ import { GmailService } from '@/lib/services/gmail.service';
 export async function POST(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const session = await auth.api.getSession({ headers: requestHeaders });
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await getCurrentUser(requestHeaders);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { suggestions } = await req.json();
     if (!suggestions || !Array.isArray(suggestions) || suggestions.length === 0) {
@@ -44,11 +44,11 @@ export async function POST(req: NextRequest) {
 
     const [emails, labels] = await Promise.all([
       prisma.emailMetadata.findMany({
-        where: { userId: session.user.id, messageId: { in: requestedMessageIds } },
+        where: { userId: user.id, messageId: { in: requestedMessageIds } },
         select: { messageId: true },
       }),
       prisma.label.findMany({
-        where: { userId: session.user.id, gmailId: { in: requestedLabelIds } },
+        where: { userId: user.id, gmailId: { in: requestedLabelIds } },
         select: { gmailId: true },
       }),
     ]);
@@ -61,11 +61,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'One or more labels not found or unauthorized' }, { status: 403 });
     }
 
-    const permission = await requireGoogleAccountPermission(session.user.id, requestHeaders, 'organizer');
+    const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'organizer');
     if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
 
     const gmailService = new GmailService(permission.accessToken);
-    const engine = new ActionEngine(gmailService, session.user.id);
+    const engine = new ActionEngine(gmailService, user.id);
 
     // Group by labelId to batch apply
     const byLabel = new Map<string, string[]>();
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     // Record activity
     await prisma.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         action: 'AI_SUGGESTION_APPLIED',
         description: `Applied ${totalApplied} AI-suggested label${totalApplied !== 1 ? 's' : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`,
         metadata: JSON.stringify({
