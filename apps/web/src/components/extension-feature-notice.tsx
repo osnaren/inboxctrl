@@ -1,9 +1,8 @@
 import Link from 'next/link';
 
+import { Button } from '@inboxctrl/ui/components/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@inboxctrl/ui/components/card';
 import { Puzzle } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface ExtensionFeatureNoticeProps {
   title: string;

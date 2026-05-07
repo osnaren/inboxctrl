@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
+import { Button } from '@inboxctrl/ui/components/button';
 import { Inbox, FileText, Send, Star, Archive, Trash2, Tag, Plus, BrainCircuit, Activity, Filter } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 
+import { Button } from '@inboxctrl/ui/components/button';
+
 import { SignInSection } from '@/components/auth/sign-in-section';
-import { Button } from '@/components/ui/button';
 
 export default function LandingPage() {
   return (

@@ -1,10 +1,10 @@
 import Link from 'next/link';
 
+import { Button } from '@inboxctrl/ui/components/button';
+import { Input } from '@inboxctrl/ui/components/input';
 import { GitBranch, Search, Settings, UserCircle } from 'lucide-react';
 
 import { AccountStatusPill } from '@/components/account-status-pill';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 export function Header() {
   return (

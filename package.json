@@ -6,10 +6,19 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm --filter @inboxctrl/web dev",
-    "build": "pnpm --filter @inboxctrl/web build",
+    "dev:site": "pnpm --filter @inboxctrl/site dev",
+    "build": "pnpm build:site && pnpm build:app",
+    "build:site": "pnpm --filter @inboxctrl/site build",
+    "build:app": "pnpm --filter @inboxctrl/web build",
     "start": "pnpm --filter @inboxctrl/web start",
-    "lint": "pnpm --filter @inboxctrl/web lint",
-    "typecheck": "tsc -b && pnpm --filter @inboxctrl/web typecheck",
+    "start:site": "pnpm --filter @inboxctrl/site start",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "tsc -b && pnpm -r --if-present typecheck",
+    "check:public-boundary": "tsx scripts/check-public-boundary.ts",
+    "seed:demo": "cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/demo-data seed",
+    "demo:reset": "cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/demo-data reset",
+    "demo": "pnpm demo:reset && pnpm seed:demo && cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/web dev",
+    "test:demo-guard": "cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/web exec tsx src/lib/services/gmail.service.demo.test.ts",
     "format": "prettier --write .",
     "spell": "cspell \"**\"",
     "prisma:generate": "pnpm --filter @inboxctrl/web prisma:generate",
@@ -21,6 +30,7 @@
     "*.{js,jsx,ts,tsx,css,md,json}": "prettier --write --ignore-unknown"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "cspell": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
@@ -29,6 +39,7 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   }
 }

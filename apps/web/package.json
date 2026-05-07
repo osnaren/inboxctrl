@@ -20,6 +20,7 @@
     "@inboxctrl/config": "workspace:*",
     "@inboxctrl/core": "workspace:*",
     "@inboxctrl/db": "workspace:*",
+    "@inboxctrl/demo-data": "workspace:*",
     "@inboxctrl/gmail": "workspace:*",
     "@inboxctrl/licensing": "workspace:*",
     "@inboxctrl/plugin-sdk": "workspace:*",

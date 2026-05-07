@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@inboxctrl/ui/components/button';
+
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {

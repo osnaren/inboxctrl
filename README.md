@@ -6,9 +6,8 @@ Open-source Gmail control plane for local inbox cleanup, label sync, safe bulk a
 
 ```txt
 apps/
-  web/        Next.js app
-  docs/       future docs app
-  marketing/  future marketing app
+  site/       public marketing and docs app
+  web/        self-host product app
 
 packages/
   core/        public feature IDs and domain types
@@ -18,7 +17,7 @@ packages/
   ai/ gmail/ db/ sync-engine/ rule-engine/ ui/
 ```
 
-The public app is designed to be useful by itself. Optional extensions can be loaded through package names listed in
+The self-host app is designed to be useful by itself. Optional extensions can be loaded through package names listed in
 `INBOXCTRL_PLUGINS`; the public package does not depend on any private extension package.
 
 ## OSS Features

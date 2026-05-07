@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 
+import { Alert, AlertDescription, AlertTitle } from '@inboxctrl/ui/components/alert';
+import { Button } from '@inboxctrl/ui/components/button';
 import { AlertTriangle, Check, Info, Shield, ShieldCheck, ShieldQuestion, Loader2 } from 'lucide-react';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export type GmailPermissionModeId = 'read-only-audit' | 'organizer' | 'settings-filter';

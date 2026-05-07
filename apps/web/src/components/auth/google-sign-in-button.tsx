@@ -5,10 +5,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 import { getScopesWithSignInForPermissionMode } from '@inboxctrl/core';
+import { Button } from '@inboxctrl/ui/components/button';
 import { Loader2, Mail } from 'lucide-react';
 
 import type { GmailPermissionModeId } from '@/components/gmail-permission-mode-select';
-import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
 
 interface GoogleSignInButtonProps {

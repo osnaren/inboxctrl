@@ -17,6 +17,7 @@ package-lock.json
 # next.js
 .next
 out
+apps/site/.source
 
 # production
 /build
@@ -31,6 +32,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+site-dev*.log
+web-demo*.log
 
 # env files (can opt-in for committing if needed)
 .env*
