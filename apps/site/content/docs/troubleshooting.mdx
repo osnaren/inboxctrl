@@ -1,0 +1,20 @@
+---
+title: Troubleshooting
+description: Common local setup and launch-foundation issues.
+---
+
+## Google redirects to the wrong URL
+
+Check `BETTER_AUTH_URL`, the browser URL you used to open the app, and the authorized redirect URI in Google Cloud.
+
+## The app says no Google account is connected
+
+Confirm you are not in demo mode, then reconnect Google from the product app. Demo mode intentionally uses a local account instead of OAuth.
+
+## AI features are disabled
+
+Enable AI settings and privacy gates explicitly. Full-body AI routes require both external AI processing and full-body fetch to be enabled.
+
+## Public site links to the product app
+
+That should not happen for launch CTAs. Public pages should point to docs, source, and self-hosting guidance until a hosted product is intentionally launched.

@@ -1,0 +1,22 @@
+---
+title: Demo mode
+description: Try InboxCtrl without OAuth, tokens, or a real Gmail account.
+---
+
+Demo mode is the recommended first trial path for launch users.
+
+It creates a deterministic user, account, labels, messages, activity log, and AI fixture output. It does not require a Google account.
+
+## Run it
+
+```bash
+pnpm demo:reset
+pnpm seed:demo
+pnpm demo
+```
+
+## Safety model
+
+When `INBOXCTRL_DEMO_MODE=true`, the app uses a demo Gmail adapter. Real Gmail client construction is blocked by a guard that throws `DEMO_MODE_REAL_GMAIL_BLOCKED`.
+
+Demo mode is for product evaluation and screenshots. It is not a mailbox backup, import, or migration mode.

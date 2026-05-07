@@ -1,0 +1,16 @@
+---
+title: Database profiles
+description: Understand the current and planned database paths.
+---
+
+SQLite is the launch development default. It keeps local setup simple and is enough for demo mode and single-user evaluation.
+
+Postgres support is tracked as a launch-readiness item for deployment profiles. Use Postgres when you move beyond local evaluation or need deployment infrastructure that expects an external database.
+
+## Current posture
+
+- SQLite: default local development path.
+- Postgres: planned deployment profile.
+- Hosted database templates: future deployment docs, not a hosted InboxCtrl service.
+
+Run the repo Prisma commands after changing database configuration.

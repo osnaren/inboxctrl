@@ -1,0 +1,30 @@
+---
+title: Getting started
+description: Choose the launch path that matches how much setup you want.
+---
+
+## Fastest path: demo mode
+
+Demo mode seeds a deterministic mailbox and runs without a real Google account.
+
+```bash
+pnpm demo:reset
+pnpm seed:demo
+pnpm demo
+```
+
+Open the product app on the printed local URL and look for the demo banner. Demo mode is local-only and guarded so real Gmail clients are not constructed.
+
+## Real mailbox path
+
+Use this when you want InboxCtrl to read your own Gmail metadata.
+
+1. Create Google OAuth credentials.
+2. Configure the product app environment in `apps/web/.env`.
+3. Run Prisma generation and database setup.
+4. Start `apps/web`.
+5. Connect Google from the product app.
+
+## What is not launched yet
+
+InboxCtrl does not provide a hosted mailbox service at launch. Deployment templates, hosted Pro features, and desktop packaging are tracked separately from the OSS launch foundation.

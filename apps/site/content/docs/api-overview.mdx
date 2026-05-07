@@ -1,0 +1,15 @@
+---
+title: API overview
+description: Public summary of the product app API surface.
+---
+
+The public site does not expose mailbox APIs. Mailbox APIs live in `apps/web`.
+
+## Product app groups
+
+- `/api/accounts/*` handles Google connection state and permission upgrades.
+- `/api/mail/*` handles mailbox metadata, labels, sync, activity, filters, and actions.
+- `/api/ai/*` handles AI suggestions, summaries, task extraction, replies, and application of accepted suggestions.
+- `/api/settings/*` handles AI and privacy settings.
+
+Demo mode lets these APIs run against deterministic local fixtures without a signed-in session.

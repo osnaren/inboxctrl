@@ -1,0 +1,17 @@
+{
+  "title": "InboxCtrl",
+  "pages": [
+    "index",
+    "getting-started",
+    "local-setup",
+    "demo-mode",
+    "google-oauth",
+    "database-profiles",
+    "docker-self-hosting",
+    "gmail-permissions",
+    "ai-settings",
+    "privacy-security",
+    "api-overview",
+    "troubleshooting"
+  ]
+}

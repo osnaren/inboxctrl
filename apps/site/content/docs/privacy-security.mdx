@@ -1,0 +1,16 @@
+---
+title: Privacy and security
+description: The launch privacy posture for self-hosted InboxCtrl.
+---
+
+InboxCtrl is self-hosted. Your deployment controls the database, tokens, provider keys, logs, backups, and network access.
+
+## Launch posture
+
+- Demo mode is local-only and blocks real Gmail access.
+- Real mailbox mode requires Google OAuth credentials.
+- Full-body AI access is gated separately from metadata access.
+- BYOK secrets are encrypted before storage in the product app.
+- Review-first workflows should keep rollback context where actions are reversible.
+
+Do not expose a local development instance publicly without reviewing auth, secrets, database, and network configuration.

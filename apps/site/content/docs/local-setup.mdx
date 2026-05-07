@@ -1,0 +1,27 @@
+---
+title: Local setup
+description: Run the self-hosted product app from a checkout.
+---
+
+## Prerequisites
+
+- Node and pnpm matching the repo package manager.
+- A local database profile. SQLite is the default development path.
+- Google OAuth credentials for real Gmail access.
+
+## Commands
+
+```bash
+pnpm install
+pnpm prisma:generate
+pnpm prisma:push
+pnpm dev
+```
+
+The product app runs from `apps/web`. The public site is separate and runs with `pnpm dev:site`.
+
+## Environment
+
+Copy `apps/web/.env.example` to `apps/web/.env` and fill in the values for Better Auth, Google OAuth, and optional AI provider keys.
+
+Keep `INBOXCTRL_DEMO_MODE=false` when connecting a real mailbox.
