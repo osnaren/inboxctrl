@@ -1,7 +1,6 @@
 import type { ValidationError, ValidationResult, ValidationWarning } from './types';
 import type { MailFilterAction, MailFilterCriteria } from '@inboxctrl/core';
 
-
 /**
  * Validate filter criteria before creating or dry-running a filter.
  *

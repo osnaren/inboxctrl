@@ -1,4 +1,3 @@
-
 import { withBackoff } from './backoff';
 
 import type { MetadataSyncOptions, MetadataSyncResult, SyncDbAdapter, SyncError, SyncGmailClient } from './types';

@@ -1,7 +1,6 @@
 import type { SafetyCheckInput, SafetyCheckOutput } from './types';
 import type { MailFilterAction, MailFilterCriteria } from '@inboxctrl/core';
 
-
 /**
  * Run safety checks on a filter before creation.
  *

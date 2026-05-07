@@ -1,7 +1,6 @@
 import type { DryRunEmail, DryRunMatchExplanation, DryRunResult } from './types';
 import type { MailFilterCriteria } from '@inboxctrl/core';
 
-
 /**
  * Run a local dry-run of filter criteria against a set of cached emails.
  *

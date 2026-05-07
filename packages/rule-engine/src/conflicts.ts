@@ -1,7 +1,6 @@
 import type { ConflictCheckResult, FilterConflict } from './types';
 import type { MailFilterAction, MailFilterCriteria } from '@inboxctrl/core';
 
-
 /**
  * Basic OSS conflict detection between a new filter and existing filters.
  *
