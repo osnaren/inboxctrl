@@ -6,6 +6,7 @@
     { "path": "./packages/plugin-sdk" },
     { "path": "./packages/licensing" },
     { "path": "./packages/gmail" },
+    { "path": "./packages/demo-data" },
     { "path": "./packages/ai" },
     { "path": "./packages/db" },
     { "path": "./packages/sync-engine" },

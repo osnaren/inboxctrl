@@ -6,11 +6,36 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
+    },
+    "./components/*": {
+      "types": "./dist/components/*.d.ts",
+      "default": "./src/components/*.tsx"
+    },
+    "./lib/utils": {
+      "types": "./dist/lib/utils.d.ts",
+      "default": "./src/lib/utils.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc -b"
+  },
+  "peerDependencies": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.4.1",
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.14.0",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^6.0.3"
   }
 }
