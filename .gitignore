@@ -39,6 +39,7 @@ web-demo*.log
 .env*
 !.env.example
 !apps/web/.env.example
+!apps/web/.env.example*
 
 # local/internal planning notes
 .internal/

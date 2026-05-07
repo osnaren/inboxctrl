@@ -22,6 +22,12 @@ The product app runs from `apps/web`. The shared Prisma schema lives in `package
 
 ## Environment
 
-Copy `apps/web/.env.example` to `apps/web/.env` and fill in the values for Better Auth, Google OAuth, and optional AI provider keys.
+Copy the matching example file to `apps/web/.env`:
+
+- `apps/web/.env.example.sqlite` for local SQLite development
+- `apps/web/.env.example.postgres` for Postgres-backed self-hosting
+- `apps/web/.env.example.demo` for local demo mode
+
+`apps/web/.env.example` remains the generic baseline if you want a single template.
 
 Keep `INBOXCTRL_DEMO_MODE=false` when connecting a real mailbox.

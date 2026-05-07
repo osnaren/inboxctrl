@@ -68,7 +68,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Environment
 
-Create `apps/web/.env` from `apps/web/.env.example` and provide:
+Create `apps/web/.env` from the example that matches your profile:
+
+- `apps/web/.env.example.sqlite` for local SQLite development
+- `apps/web/.env.example.postgres` for Postgres-backed self-hosting
+- `apps/web/.env.example.demo` for local demo mode
+
+You can also start from `apps/web/.env.example` as the generic baseline. Provide:
 
 ```bash
 DATABASE_URL="file:./dev.db"
