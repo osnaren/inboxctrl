@@ -1,16 +1,58 @@
 ---
 title: Docker self-hosting
-description: Track the Docker-first deployment path for the OSS launch.
+description: Run the product app, demo mode, or public site from the launch Docker templates.
 ---
 
-Docker-first deployment templates are planned for launch readiness. Until those templates land, the supported path is local development with pnpm and the app-level environment file.
+Choose the Compose file that matches the way you want to run InboxCtrl.
 
-## Expected template goals
+## Product app plus Postgres
 
-- Product app container.
-- Database profile selection.
-- Public site container or static public site build.
-- Environment examples for Better Auth and Google OAuth.
-- Smoke commands for auth, mail list, demo mode, and public docs.
+1. Copy `apps/web/.env.example.postgres` to `apps/web/.env`.
+2. Set `BETTER_AUTH_SECRET`, `INBOXCTRL_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`.
+3. Run:
 
-Docker templates will not turn InboxCtrl into a hosted SaaS. You remain responsible for credentials, database storage, backups, and infrastructure.
+```bash
+docker compose --env-file apps/web/.env up --build
+```
+
+The product image builds the web app with the Postgres Prisma profile and applies the schema on container start. The
+bundled Postgres container stays on the internal Docker network by default, which avoids colliding with another local
+database already bound to host port `5432`. If host port `3000` is already busy, set `INBOXCTRL_APP_PORT` before
+starting Compose.
+
+Use `http://localhost:3000/api/health` for a shallow runtime check, or replace `3000` with your overridden `INBOXCTRL_APP_PORT`.
+
+## Demo mode
+
+Run the seeded SQLite demo without real Gmail access:
+
+```bash
+docker compose -f docker-compose.demo.yml up --build
+```
+
+Demo mode keeps `INBOXCTRL_DEMO_MODE=true`, reseeds fixture data on start, and blocks real Gmail client construction in
+the app layer. Set `INBOXCTRL_DEMO_PORT` if you need something other than `3000`, then check `/api/health` on that port.
+
+## Public site
+
+Run the public site and docs without app secrets:
+
+```bash
+docker compose -f docker-compose.site.yml up --build
+```
+
+The site image does not require Google OAuth credentials, a database URL, Better Auth secrets, Gmail scopes, or AI provider secrets.
+Set `INBOXCTRL_SITE_PORT` if `3001` is already in use, then verify `/docs` on that port.
+
+## Launch checks
+
+Useful validation commands around the Docker path:
+
+```bash
+docker info
+docker compose --env-file apps/web/.env up --build
+docker compose -f docker-compose.demo.yml up --build
+docker compose -f docker-compose.site.yml up --build
+```
+
+Docker templates do not turn InboxCtrl into a hosted SaaS. You remain responsible for credentials, database storage, backups, and infrastructure.

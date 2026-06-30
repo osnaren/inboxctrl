@@ -5,6 +5,13 @@ description: Configure AI features without hiding privacy choices.
 
 AI features are optional. Users can keep AI disabled, use an environment provider key, or bring their own provider key where supported by the app.
 
+## Current launch posture
+
+- AI is off by default.
+- Demo mode returns deterministic AI fixture output.
+- Metadata-only workflows should stay separate from full-body workflows.
+- Self-host operators decide whether any external provider is enabled at all.
+
 ## Privacy gates
 
 Full-body AI features require explicit settings for:
@@ -13,6 +20,19 @@ Full-body AI features require explicit settings for:
 - full email body fetch
 - AI output storage
 
-Metadata-only workflows should stay separate from full-body workflows.
+## Provider configuration
+
+Current launch examples include environment slots for:
+
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `GOOGLE_GENERATIVE_AI_API_KEY`
+- `GROQ_API_KEY`
+
+The product app can also store encrypted BYOK values when that path is enabled for a user.
+
+## Testing configuration
+
+Use the AI settings page to enable AI deliberately, then validate the chosen configuration from the product app. If AI stays disabled, the rest of the metadata-first product path should still work.
 
 Demo mode returns deterministic AI fixture output and does not call an external AI provider.

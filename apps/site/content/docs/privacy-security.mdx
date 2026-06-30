@@ -13,4 +13,27 @@ InboxCtrl is self-hosted. Your deployment controls the database, tokens, provide
 - BYOK secrets are encrypted before storage in the product app.
 - Review-first workflows should keep rollback context where actions are reversible.
 
+## What the app stores
+
+At launch, InboxCtrl is primarily metadata-first:
+
+- cached message metadata used for mailbox views and search
+- label state
+- activity and rollback context for reversible actions
+- AI and privacy settings
+- auth/session state for the self-host instance
+
+Full message bodies are not the default list-view storage path and should remain an explicit operator choice.
+
+## Self-host responsibilities
+
+Running InboxCtrl yourself means you are responsible for:
+
+- host and network exposure
+- OAuth credential handling
+- database access and backups
+- log retention
+- AI provider usage and privacy disclosures
+- Docker or local runtime patching and upgrades
+
 Do not expose a local development instance publicly without reviewing auth, secrets, database, and network configuration.

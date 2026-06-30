@@ -3,28 +3,64 @@ title: Getting started
 description: Choose the launch path that matches how much setup you want.
 ---
 
+InboxCtrl launches as a public docs site plus a separate self-host product app:
+
+- `apps/site` is the public marketing/docs surface.
+- `apps/web` is the self-host mailbox app.
+- Root `docs/` stays internal and is not the public docs source.
+
 ## Fastest path: demo mode
 
 Demo mode seeds a deterministic mailbox and runs without a real Google account.
 
 ```bash
-pnpm demo:reset
-pnpm seed:demo
 pnpm demo
 ```
 
-Open the product app on the printed local URL and look for the demo banner. Demo mode is local-only and guarded so real Gmail clients are not constructed.
+`pnpm demo` resets and reseeds demo data before starting the product app. Open the printed local URL and look for the demo banner. Demo mode is local-only and guarded so real Gmail clients are not constructed.
 
-## Real mailbox path
+If you want to reset demo state manually, use:
+
+```bash
+pnpm demo:reset
+pnpm seed:demo
+```
+
+## Local real-mailbox path
 
 Use this when you want InboxCtrl to read your own Gmail metadata.
 
-1. Create Google OAuth credentials.
-2. Configure the product app environment in `apps/web/.env`.
-3. Run Prisma generation and database setup.
-4. Start `apps/web`.
+1. Copy `apps/web/.env.example.sqlite` to `apps/web/.env`.
+2. Create Google OAuth credentials.
+3. Run `pnpm db:use sqlite`, `pnpm db:generate`, and `pnpm db:push`.
+4. Start `apps/web` with `pnpm dev`.
 5. Connect Google from the product app.
+
+Read [Google OAuth](/docs/google-oauth), [Gmail permissions](/docs/gmail-permissions), and [Local setup](/docs/local-setup) before moving to organizer or filter workflows.
+
+## Docker self-host path
+
+Use this when you want the current deployment-oriented baseline:
+
+1. Copy `apps/web/.env.example.postgres` to `apps/web/.env`.
+2. Fill in Better Auth, app URL, and Google OAuth values.
+3. Run `docker compose --env-file apps/web/.env up --build`.
+
+Read [Docker self-hosting](/docs/docker-self-hosting) and [Database profiles](/docs/database-profiles) first.
+
+## Launch validation
+
+Use these checks when validating a checkout or a release candidate:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+pnpm check:public-boundary
+pnpm test:api-contracts
+pnpm test:demo-guard
+```
 
 ## What is not launched yet
 
-InboxCtrl does not provide a hosted mailbox service at launch. Deployment templates, hosted Pro features, and desktop packaging are tracked separately from the OSS launch foundation.
+InboxCtrl does not provide a hosted mailbox service at launch. Cloud hosting, private Pro implementation, Desktop/Tauri packaging, and platform-specific templates beyond Docker are tracked separately from the OSS launch foundation.

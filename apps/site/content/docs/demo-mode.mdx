@@ -10,13 +10,38 @@ It creates a deterministic user, account, labels, messages, activity log, and AI
 ## Run it
 
 ```bash
+pnpm demo
+```
+
+`pnpm demo` already resets and reseeds the demo state before starting the product app. Use these only when you want to manipulate demo state directly:
+
+```bash
 pnpm demo:reset
 pnpm seed:demo
-pnpm demo
 ```
 
 ## Safety model
 
 When `INBOXCTRL_DEMO_MODE=true`, the app uses a demo Gmail adapter. Real Gmail client construction is blocked by a guard that throws `DEMO_MODE_REAL_GMAIL_BLOCKED`.
+
+## What works
+
+Demo mode supports the launch workflows that depend on local fixture state:
+
+- mailbox list and cached search
+- label views and local label mutations
+- local-only bulk action previews
+- rollback previews
+- natural-language filter drafting and dry runs
+- AI example output
+- settings pages and product copy review
+
+## What stays local or mocked
+
+- no Google OAuth flow
+- no real Gmail API calls
+- no real mailbox mutations
+- no external AI requirement by default
+- no mailbox backup, import, or migration semantics
 
 Demo mode is for product evaluation and screenshots. It is not a mailbox backup, import, or migration mode.

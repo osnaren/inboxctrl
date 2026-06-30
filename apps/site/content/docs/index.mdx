@@ -5,13 +5,15 @@ description: Launch docs for the self-hosted OSS Gmail control app.
 
 InboxCtrl is an AGPL self-hosted app for reviewing Gmail metadata, staging mailbox actions, and keeping rollback context before anything changes in Gmail.
 
-The public launch path is local-first. There is no hosted InboxCtrl SaaS at launch, and Pro/Desktop work is future planning rather than an available product.
+The public launch path is local-first. There is no hosted InboxCtrl SaaS at launch, and Pro, Cloud, and Desktop work remain future planning rather than available products.
 
 ## What to read first
 
 - Start with [Getting started](/docs/getting-started) for the fastest path.
 - Use [Demo mode](/docs/demo-mode) when you want to try the app without Google OAuth.
 - Use [Local setup](/docs/local-setup) when you want to run the product app against your own credentials.
+- Use [Docker self-hosting](/docs/docker-self-hosting) when you want the current launch deployment baseline.
+- Use [API overview](/docs/api-overview) and [Gmail permissions](/docs/gmail-permissions) before wiring product integrations or OAuth upgrades.
 
 ## Repo shape
 
@@ -19,3 +21,18 @@ The public launch path is local-first. There is no hosted InboxCtrl SaaS at laun
 - `apps/web` contains the self-hosted product app.
 - `packages/*` contains shared OSS package boundaries.
 - Root `docs/` remains internal engineering documentation and is not the public docs source.
+
+## Launch checks
+
+When you want to verify a checkout end to end, the launch foundation currently expects:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+pnpm build:site
+pnpm build:app
+pnpm check:public-boundary
+pnpm test:api-contracts
+pnpm test:demo-guard
+```

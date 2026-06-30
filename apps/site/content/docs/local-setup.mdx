@@ -5,20 +5,26 @@ description: Run the self-hosted product app from a checkout.
 
 ## Prerequisites
 
-- Node and pnpm matching the repo package manager.
+- Node.js and pnpm matching the repo package manager.
 - A local database profile. SQLite is the default development path.
-- Google OAuth credentials for real Gmail access.
+- Google OAuth credentials only if you want a real mailbox session.
 
-## Commands
+The product app lives in `apps/web`. The public site/docs app is separate and can run with `pnpm dev:site`.
+
+## Recommended local profile
+
+For launch, use SQLite unless you are explicitly testing the Docker/Postgres path.
 
 ```bash
+cp apps/web/.env.example.sqlite apps/web/.env
 pnpm install
+pnpm db:use sqlite
 pnpm db:generate
 pnpm db:push
 pnpm dev
 ```
 
-The product app runs from `apps/web`. The shared Prisma schema lives in `packages/db/prisma/schema.prisma`. The public site is separate and runs with `pnpm dev:site`.
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Environment
 
@@ -31,3 +37,40 @@ Copy the matching example file to `apps/web/.env`:
 `apps/web/.env.example` remains the generic baseline if you want a single template.
 
 Keep `INBOXCTRL_DEMO_MODE=false` when connecting a real mailbox.
+
+Minimum local values:
+
+```bash
+DATABASE_URL="file:./dev.db"
+BETTER_AUTH_SECRET="generate-a-strong-secret"
+INBOXCTRL_SECRET="generate-a-strong-secret"
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+```
+
+## Public site boundary
+
+The public site is not the mailbox app:
+
+- `apps/site` must stay free of Gmail, auth, Prisma, sync, and app-only route imports.
+- `apps/web` owns `/mail`, Gmail auth, sync, mailbox actions, filters, AI routes, and settings.
+- Root `docs/` stays internal engineering material.
+
+`pnpm check:public-boundary` validates that split.
+
+## Validation
+
+Use this command set before treating a local checkout as launch-ready:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+pnpm build:site
+pnpm build:app
+pnpm check:public-boundary
+pnpm test:api-contracts
+pnpm test:demo-guard
+```

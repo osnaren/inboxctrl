@@ -14,3 +14,32 @@ Postgres support is available as an explicit provider profile for deployment-ori
 - Hosted database templates: future deployment docs, not a hosted InboxCtrl service.
 
 Switch providers with `pnpm db:use sqlite` or `pnpm db:use postgres`, then regenerate and apply schema changes with the repo DB scripts.
+
+## Local SQLite path
+
+```bash
+pnpm db:use sqlite
+pnpm db:generate
+pnpm db:push
+```
+
+Use this for:
+
+- local development
+- demo mode
+- quick OSS evaluation
+
+## Postgres self-host path
+
+```bash
+pnpm db:use postgres
+pnpm db:generate
+pnpm db:check
+```
+
+The current Docker baseline builds the product app with the Postgres profile and applies schema on container start.
+
+The Docker templates use those same profiles:
+
+- `docker-compose.yml` builds the product app with the Postgres profile.
+- `docker-compose.demo.yml` builds the demo image with the SQLite profile.

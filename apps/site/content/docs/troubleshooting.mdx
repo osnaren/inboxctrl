@@ -11,9 +11,72 @@ Check `BETTER_AUTH_URL`, the browser URL you used to open the app, and the autho
 
 Confirm you are not in demo mode, then reconnect Google from the product app. Demo mode intentionally uses a local account instead of OAuth.
 
+## Missing or invalid local environment values
+
+If the product app fails early, re-check:
+
+- `BETTER_AUTH_SECRET`
+- `INBOXCTRL_SECRET`
+- `BETTER_AUTH_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `DATABASE_URL`
+
+Use the matching example file under `apps/web/` instead of mixing demo, SQLite, and Postgres values.
+
+## Prisma provider or database profile mismatch
+
+If the app was last used with a different database profile, reset it explicitly:
+
+```bash
+pnpm db:use sqlite
+pnpm db:generate
+pnpm db:push
+```
+
+Or switch to Postgres intentionally:
+
+```bash
+pnpm db:use postgres
+pnpm db:generate
+pnpm db:check
+```
+
+## Docker app or demo ports are already taken
+
+Override the host ports before starting Compose:
+
+```bash
+INBOXCTRL_APP_PORT=13000
+INBOXCTRL_DEMO_PORT=13002
+INBOXCTRL_SITE_PORT=13001
+```
+
+The bundled Postgres service stays internal by default, so it should not need host port `5432` unless you add one yourself.
+
+## Demo mode does not look reset
+
+Run:
+
+```bash
+pnpm demo:reset
+pnpm seed:demo
+```
+
+Or just restart with `pnpm demo`, which already performs both steps.
+
 ## AI features are disabled
 
 Enable AI settings and privacy gates explicitly. Full-body AI routes require both external AI processing and full-body fetch to be enabled.
+
+## Public boundary check fails
+
+The launch split is intentional:
+
+- `apps/site` must not import Gmail, Prisma, auth, sync, or app-only mailbox code.
+- `apps/web` owns the product runtime.
+- Root `docs/` stays internal.
+
+Run `pnpm check:public-boundary` to catch accidental drift.
 
 ## Public site links to the product app
 

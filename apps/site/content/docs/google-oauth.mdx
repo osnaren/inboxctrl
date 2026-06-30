@@ -5,7 +5,13 @@ description: Configure Google sign-in for a self-hosted InboxCtrl instance.
 
 InboxCtrl uses Google OAuth so the self-hosted product app can request Gmail scopes explicitly.
 
-## Callback URL
+## Before you start
+
+- Demo mode does not need Google OAuth.
+- The public site does not need Google OAuth.
+- Only the self-host product app in `apps/web` uses the callback route.
+
+## Local callback URL
 
 For local development, the callback route is:
 
@@ -15,8 +21,32 @@ http://localhost:3000/api/auth/callback/google
 
 Match the origin to the URL you actually use. If your app runs on another host or port, update both the Google OAuth client and `BETTER_AUTH_URL`.
 
-## Scopes
+## Required app variables
+
+Set these in `apps/web/.env`:
+
+```bash
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+```
+
+`BETTER_AUTH_URL` and the Google redirect URI must stay aligned exactly, including scheme, host, port, and path.
+
+## Self-host origin rules
+
+For a self-hosted deployment:
+
+1. Set `BETTER_AUTH_URL` to the public app origin.
+2. Set `NEXT_PUBLIC_APP_URL` to the same origin unless you have a deliberate split.
+3. Register `${BETTER_AUTH_URL}/api/auth/callback/google` in Google Cloud.
+4. Revisit the callback whenever you change domain, protocol, or port.
+
+## Scope model
 
 InboxCtrl requests incremental Gmail access. Start with read-only audit permissions, then upgrade only when you need organization or filter management features.
+
+The launch OSS app keeps the broad `https://mail.google.com/` scope out of the default path. Read [Gmail permissions](/docs/gmail-permissions) before asking users to approve broader workflows.
 
 Demo mode does not use Google OAuth.

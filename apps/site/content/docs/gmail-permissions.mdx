@@ -7,14 +7,36 @@ InboxCtrl separates Gmail access by workflow.
 
 ## Read-only audit
 
-Used for mailbox metadata, labels, sender review, and dry-run style workflows.
+Used for:
+
+- label sync
+- mailbox metadata sync
+- cached mailbox views
+- filter draft preview
+- metadata-based AI suggestions
+
+This mode is the safest real-mailbox starting point.
 
 ## Organizer
 
-Used when you apply labels, archive messages, trash messages, or otherwise modify mailbox state.
+Used when you:
+
+- apply or remove labels
+- archive messages
+- mark read or unread
+- star or unstar
+- trash messages
+
+Organizer is for review-first mailbox mutation without Gmail settings access.
 
 ## Settings and filters
 
-Used when creating or managing Gmail filters.
+Used when creating or managing Gmail filters and label-management workflows that need Gmail settings access.
+
+## Scope notes
+
+- InboxCtrl uses explicit incremental upgrades instead of asking for the broadest Gmail scope up front.
+- The current OSS launch path intentionally avoids `https://mail.google.com/`.
+- Gmail metadata, modify, and settings scopes are restricted scopes in Google review terms, so production-facing self-host guidance should keep the permission ask as narrow as possible.
 
 The product should keep user-visible permission upgrades explicit. Demo mode simulates capabilities locally and does not request Gmail permissions.
