@@ -1,11 +1,15 @@
 import { headers } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
-import { getErrorMessage } from '@/lib/errors';
+import { handleApiRouteError, jsonApiSuccess, requireAuthenticatedUser } from '@/lib/api/contracts';
+import {
+  buildMailListOrderBy,
+  buildMailListWhere,
+  formatMailListEmail,
+  parseMailListQuery,
+} from '@/lib/api/launch-contracts';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session-user';
-
-import type { Prisma } from '@inboxctrl/db';
 
 /**
  * GET /api/mail/list
@@ -28,101 +32,39 @@ import type { Prisma } from '@inboxctrl/db';
 export async function GET(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const currentUser = await getCurrentUser(requestHeaders);
-
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = currentUser.id;
-    const { searchParams } = req.nextUrl;
-
-    // Parse query params
-    const label = searchParams.get('label');
-    const sender = searchParams.get('sender');
-    const query = searchParams.get('q');
-    const unread = searchParams.get('unread') === 'true';
-    const starred = searchParams.get('starred') === 'true';
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    const pageSize = Math.min(200, Math.max(1, parseInt(searchParams.get('pageSize') || '50', 10)));
-    const sortBy = searchParams.get('sortBy') || 'date';
-    const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
-
-    // Build where clause
-    const where: Prisma.EmailMetadataWhereInput = { userId };
-
-    if (unread) where.isUnread = true;
-    if (starred) where.isStarred = true;
-
-    if (sender) {
-      where.OR = [{ sender: { contains: sender } }, { from: { contains: sender } }];
-    }
-
-    if (label) {
-      where.labelIds = { contains: JSON.stringify(label) };
-    }
-
-    if (query) {
-      const textSearch: Prisma.EmailMetadataWhereInput[] = [
-        { from: { contains: query } },
-        { to: { contains: query } },
-        { subject: { contains: query } },
-        { snippet: { contains: query } },
-      ];
-      // Combine with existing OR conditions
-      if (where.OR) {
-        where.AND = [{ OR: where.OR }, { OR: textSearch }];
-        delete where.OR;
-      } else {
-        where.OR = textSearch;
-      }
-    }
-
-    // Build orderBy
-    const orderByMap: Record<string, Prisma.EmailMetadataOrderByWithRelationInput> = {
-      date: { date: sortDir },
-      from: { from: sortDir },
-      subject: { subject: sortDir },
-    };
-    const orderBy = orderByMap[sortBy] || { date: sortDir };
+    const currentUser = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
+    const mailQuery = parseMailListQuery(req.nextUrl.searchParams);
+    const where = buildMailListWhere(currentUser.id, mailQuery);
+    const orderBy = buildMailListOrderBy(mailQuery);
 
     // Execute query
     const [emails, totalCount] = await Promise.all([
       prisma.emailMetadata.findMany({
         where,
         orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        skip: (mailQuery.page - 1) * mailQuery.pageSize,
+        take: mailQuery.pageSize,
       }),
       prisma.emailMetadata.count({ where }),
     ]);
 
     // Get last sync time for cache freshness
     const cacheUser = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: currentUser.id },
       select: { lastSyncAt: true },
     });
 
     // Parse labels and format
-    const formattedEmails = emails.map((email) => ({
-      ...email,
-      labelIds: parseLabelIds(email.labelIds),
-      formattedDate: new Date(email.date).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      }),
-    }));
+    const formattedEmails = emails.map(formatMailListEmail);
 
-    return NextResponse.json({
+    return jsonApiSuccess({
       emails: formattedEmails,
       pagination: {
-        page,
-        pageSize,
+        page: mailQuery.page,
+        pageSize: mailQuery.pageSize,
         totalCount,
-        totalPages: Math.ceil(totalCount / pageSize),
-        hasMore: page * pageSize < totalCount,
+        totalPages: Math.ceil(totalCount / mailQuery.pageSize),
+        hasMore: mailQuery.page * mailQuery.pageSize < totalCount,
       },
       cache: {
         lastSyncAt: cacheUser?.lastSyncAt?.toISOString() ?? null,
@@ -133,15 +75,9 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: unknown) {
     console.error('List API Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch emails', details: getErrorMessage(error) }, { status: 500 });
-  }
-}
-
-function parseLabelIds(value: string): string[] {
-  try {
-    const parsed = JSON.parse(value || '[]');
-    return Array.isArray(parsed) ? parsed.filter((label): label is string => typeof label === 'string') : [];
-  } catch {
-    return [];
+    return handleApiRouteError(error, {
+      code: 'MAIL_LIST_FETCH_FAILED',
+      message: 'Failed to fetch emails',
+    });
   }
 }

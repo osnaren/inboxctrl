@@ -1,8 +1,20 @@
 import { headers } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
-import { getErrorMessage } from '@/lib/errors';
+import {
+  apiError,
+  handleApiRouteError,
+  jsonApiSuccess,
+  requireAuthenticatedUser,
+  throwPermissionFailure,
+} from '@/lib/api/contracts';
+import {
+  parseCreateLabelRequest,
+  parseDeleteLabelRequest,
+  parseJsonObject,
+  parseUpdateLabelRequest,
+} from '@/lib/api/launch-contracts';
 import { prisma } from '@/lib/prisma';
 import { DBService } from '@/lib/services/db.service';
 import { GmailService } from '@/lib/services/gmail.service';
@@ -11,31 +23,31 @@ import { getCurrentUser } from '@/lib/session-user';
 export async function GET(_req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const user = await getCurrentUser(requestHeaders);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
 
     const db = new DBService();
     const labels = await db.getUserLabels(user.id);
 
-    return NextResponse.json({ labels });
+    return jsonApiSuccess({ labels });
   } catch (error: unknown) {
-    return NextResponse.json({ error: 'Failed to fetch labels', details: getErrorMessage(error) }, { status: 500 });
+    return handleApiRouteError(error, {
+      code: 'MAIL_LABELS_FETCH_FAILED',
+      message: 'Failed to fetch labels',
+    });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const user = await getCurrentUser(requestHeaders);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { name, backgroundColor, textColor } = await req.json();
-    if (!name) return NextResponse.json({ error: 'Missing label name' }, { status: 400 });
+    const user = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
+    const body = await parseJsonObject(req);
+    const { name, backgroundColor, textColor } = parseCreateLabelRequest(body);
 
     const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'settings-filter');
-    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+    const accessToken = permission.ok ? permission.accessToken : throwPermissionFailure(permission);
 
-    const gmailService = new GmailService(permission.accessToken);
+    const gmailService = new GmailService(accessToken);
     const newRemoteLabel = await gmailService.createLabel(name, backgroundColor, textColor);
 
     if (newRemoteLabel.id && newRemoteLabel.name) {
@@ -48,63 +60,69 @@ export async function POST(req: NextRequest) {
           color: backgroundColor || null,
         },
       });
-      return NextResponse.json({ label: savedLabel });
+      return jsonApiSuccess({ label: savedLabel }, { status: 201 });
     }
 
-    return NextResponse.json({ error: 'Failed to create label remotely' }, { status: 500 });
+    throw apiError(502, 'GMAIL_LABEL_CREATE_FAILED', 'Failed to create label remotely');
   } catch (error: unknown) {
-    return NextResponse.json({ error: 'Failed to create label', details: getErrorMessage(error) }, { status: 500 });
+    return handleApiRouteError(error, {
+      code: 'MAIL_LABEL_CREATE_FAILED',
+      message: 'Failed to create label',
+    });
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const user = await getCurrentUser(requestHeaders);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
+    const body = await parseJsonObject(req);
+    const { id } = parseDeleteLabelRequest(body);
 
-    const { id } = await req.json();
-    if (!id) return NextResponse.json({ error: 'Missing label id' }, { status: 400 });
-
-    const label = await prisma.label.findUnique({
+    const label = await prisma.label.findFirst({
       where: { id, userId: user.id },
     });
 
-    if (!label) return NextResponse.json({ error: 'Label not found' }, { status: 404 });
+    if (!label) {
+      throw apiError(404, 'MAIL_LABEL_NOT_FOUND', 'Label not found');
+    }
 
     const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'settings-filter');
-    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+    const accessToken = permission.ok ? permission.accessToken : throwPermissionFailure(permission);
 
-    const gmailService = new GmailService(permission.accessToken);
+    const gmailService = new GmailService(accessToken);
     await gmailService.deleteLabel(label.gmailId);
 
     await prisma.label.delete({ where: { id } });
 
-    return NextResponse.json({ success: true });
+    return jsonApiSuccess({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: 'Failed to delete label', details: getErrorMessage(error) }, { status: 500 });
+    return handleApiRouteError(error, {
+      code: 'MAIL_LABEL_DELETE_FAILED',
+      message: 'Failed to delete label',
+    });
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const user = await getCurrentUser(requestHeaders);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
+    const body = await parseJsonObject(req);
+    const { id, name, backgroundColor, textColor } = parseUpdateLabelRequest(body);
 
-    const { id, name, backgroundColor, textColor } = await req.json();
-    if (!id || !name) return NextResponse.json({ error: 'Missing label id or name' }, { status: 400 });
-
-    const label = await prisma.label.findUnique({
+    const label = await prisma.label.findFirst({
       where: { id, userId: user.id },
     });
 
-    if (!label) return NextResponse.json({ error: 'Label not found' }, { status: 404 });
+    if (!label) {
+      throw apiError(404, 'MAIL_LABEL_NOT_FOUND', 'Label not found');
+    }
 
     const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'settings-filter');
-    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+    const accessToken = permission.ok ? permission.accessToken : throwPermissionFailure(permission);
 
-    const gmailService = new GmailService(permission.accessToken);
+    const gmailService = new GmailService(accessToken);
     const updatedRemoteLabel = await gmailService.updateLabel(label.gmailId, name, backgroundColor, textColor);
 
     if (updatedRemoteLabel.id && updatedRemoteLabel.name) {
@@ -115,11 +133,14 @@ export async function PATCH(req: NextRequest) {
           color: backgroundColor || null,
         },
       });
-      return NextResponse.json({ label: updatedLabel });
+      return jsonApiSuccess({ label: updatedLabel });
     }
 
-    return NextResponse.json({ error: 'Failed to update label remotely' }, { status: 500 });
+    throw apiError(502, 'GMAIL_LABEL_UPDATE_FAILED', 'Failed to update label remotely');
   } catch (error: unknown) {
-    return NextResponse.json({ error: 'Failed to update label', details: getErrorMessage(error) }, { status: 500 });
+    return handleApiRouteError(error, {
+      code: 'MAIL_LABEL_UPDATE_FAILED',
+      message: 'Failed to update label',
+    });
   }
 }

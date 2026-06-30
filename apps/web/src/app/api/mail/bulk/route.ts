@@ -1,48 +1,29 @@
 import { headers } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
-import { getErrorMessage } from '@/lib/errors';
+import {
+  apiError,
+  handleApiRouteError,
+  jsonApiSuccess,
+  requireAuthenticatedUser,
+  throwPermissionFailure,
+} from '@/lib/api/contracts';
+import { parseBulkActionRequest, parseJsonObject } from '@/lib/api/launch-contracts';
 import { prisma } from '@/lib/prisma';
-import { ActionEngine, type ActionType } from '@/lib/services/action-engine';
+import { ActionEngine } from '@/lib/services/action-engine';
 import { GmailService } from '@/lib/services/gmail.service';
 import { getCurrentUser } from '@/lib/session-user';
-
-const VALID_ACTIONS: ActionType[] = [
-  'archive',
-  'trash',
-  'mark-read',
-  'mark-unread',
-  'star',
-  'unstar',
-  'apply-label',
-  'remove-label',
-];
 
 export async function POST(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const user = await getCurrentUser(requestHeaders);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { messageIds, action, labelId } = await req.json();
-    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
-      return NextResponse.json({ error: 'Missing or invalid messageIds array' }, { status: 400 });
-    }
-
-    if (!VALID_ACTIONS.includes(action)) {
-      return NextResponse.json(
-        { error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(', ')}` },
-        { status: 400 }
-      );
-    }
-
-    if ((action === 'apply-label' || action === 'remove-label') && !labelId) {
-      return NextResponse.json({ error: `Missing labelId for '${action}' action` }, { status: 400 });
-    }
+    const user = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
+    const body = await parseJsonObject(req);
+    const { messageIds, action, labelId } = parseBulkActionRequest(body);
 
     const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'organizer');
-    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+    const accessToken = permission.ok ? permission.accessToken : throwPermissionFailure(permission);
 
     // Validate that all messageIds belong to the current user
     const userEmails = await prisma.emailMetadata.findMany({
@@ -55,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const validMessageIds = userEmails.map((e) => e.messageId);
     if (validMessageIds.length !== messageIds.length) {
-      return NextResponse.json({ error: 'One or more messages not found or unauthorized' }, { status: 403 });
+      throw apiError(403, 'MAIL_MESSAGES_UNAUTHORIZED', 'One or more messages not found or unauthorized');
     }
 
     if ((action === 'apply-label' || action === 'remove-label') && labelId) {
@@ -65,27 +46,40 @@ export async function POST(req: NextRequest) {
       });
 
       if (!label) {
-        return NextResponse.json({ error: 'Label not found or unauthorized' }, { status: 403 });
+        throw apiError(403, 'MAIL_LABEL_UNAUTHORIZED', 'Label not found or unauthorized');
       }
     }
 
-    const gmailService = new GmailService(permission.accessToken);
+    const gmailService = new GmailService(accessToken);
     const engine = new ActionEngine(gmailService, user.id);
 
     // Safety check for destructive actions
     const safetyCheck = await engine.checkSafety(action);
     if (!safetyCheck.allowed) {
-      return NextResponse.json({ error: safetyCheck.reason, code: 'DESTRUCTIVE_ACTION_DISABLED' }, { status: 403 });
+      throw apiError(403, 'DESTRUCTIVE_ACTION_DISABLED', safetyCheck.reason ?? 'Action is not allowed');
     }
 
     const result = await engine.execute({ messageIds, action, labelId });
+    const actionBatch = await prisma.actionBatch.create({
+      data: {
+        userId: user.id,
+        action,
+        labelId: labelId ?? null,
+        messageIdsJson: JSON.stringify(messageIds),
+        totalCount: result.total,
+        processedCount: result.processed,
+        failedCount: result.failed,
+        activityLogId: result.activityLogId,
+      },
+    });
 
-    return NextResponse.json({
+    return jsonApiSuccess({
       success: result.success,
       processed: result.processed,
       failed: result.failed,
       total: result.total,
       activityLogId: result.activityLogId,
+      actionBatchId: actionBatch.id,
       ...(result.failed > 0 && {
         failures: result.results
           .filter((r) => !r.success)
@@ -97,9 +91,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: unknown) {
     console.error('Bulk Action Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to perform bulk action', details: getErrorMessage(error) },
-      { status: 500 }
-    );
+    return handleApiRouteError(error, {
+      code: 'MAIL_BULK_ACTION_FAILED',
+      message: 'Failed to perform bulk action',
+    });
   }
 }

@@ -1,9 +1,16 @@
 import { headers } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
+import {
+  apiError,
+  handleApiRouteError,
+  jsonApiSuccess,
+  requireAuthenticatedUser,
+  throwPermissionFailure,
+} from '@/lib/api/contracts';
+import { parseFilterRequest, parseJsonObject } from '@/lib/api/launch-contracts';
 import { isDemoMode } from '@/lib/demo-mode';
-import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { AIService } from '@/lib/services/ai.service';
 import { DBService } from '@/lib/services/db.service';
@@ -16,11 +23,9 @@ import type { gmail_v1 } from 'googleapis';
 export async function POST(req: NextRequest) {
   try {
     const requestHeaders = await headers();
-    const user = await getCurrentUser(requestHeaders);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { prompt, dryRun = false } = await req.json();
-    if (!prompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
+    const user = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
+    const body = await parseJsonObject(req);
+    const { prompt, dryRun } = parseFilterRequest(body);
 
     const db = new DBService();
 
@@ -50,12 +55,14 @@ export async function POST(req: NextRequest) {
     if (filterData.action.forward) actionPayload.forward = filterData.action.forward;
 
     if (Object.keys(actionPayload).length === 0) {
-      return NextResponse.json({ error: 'No valid actions could be parsed from prompt.' }, { status: 400 });
+      throw apiError(400, 'INVALID_REQUEST', 'No valid actions could be parsed from prompt.');
     }
 
     if (dryRun) {
       const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'read-only-audit');
-      if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+      if (!permission.ok) {
+        throwPermissionFailure(permission);
+      }
 
       const conditions: Prisma.EmailMetadataWhereInput[] = [{ userId: user.id }];
       if (filterData.criteria.from) {
@@ -78,7 +85,18 @@ export async function POST(req: NextRequest) {
         where: { AND: conditions },
       });
 
-      return NextResponse.json({
+      const filterDraft = await prisma.filterDraft.create({
+        data: {
+          userId: user.id,
+          prompt,
+          criteriaJson: JSON.stringify(filterData.criteria ?? {}),
+          actionJson: JSON.stringify(filterData.action ?? {}),
+          dryRun: true,
+          matchedCount: totalMatchCount,
+        },
+      });
+
+      return jsonApiSuccess({
         success: true,
         isDryRun: true,
         parsedAiData: filterData,
@@ -86,18 +104,38 @@ export async function POST(req: NextRequest) {
           totalMatched: totalMatchCount,
           samples: matchedEmails,
         },
+        draftId: filterDraft.id,
       });
     }
 
     const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'settings-filter');
-    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+    const accessToken = permission.ok ? permission.accessToken : throwPermissionFailure(permission);
 
-    const gmailService = new GmailService(permission.accessToken);
+    const gmailService = new GmailService(accessToken);
     const createdFilter = await gmailService.createFilter(filterData.criteria, actionPayload);
+    const filterDraft = await prisma.filterDraft.create({
+      data: {
+        userId: user.id,
+        prompt,
+        criteriaJson: JSON.stringify(filterData.criteria ?? {}),
+        actionJson: JSON.stringify(filterData.action ?? {}),
+        dryRun: false,
+        matchedCount: null,
+        filterId: createdFilter.id ?? null,
+      },
+    });
 
-    return NextResponse.json({ success: true, filter: createdFilter, parsedAiData: filterData });
+    return jsonApiSuccess({
+      success: true,
+      filter: createdFilter,
+      parsedAiData: filterData,
+      draftId: filterDraft.id,
+    });
   } catch (error: unknown) {
     console.error('Filter API Error:', error);
-    return NextResponse.json({ error: 'Failed to create filter', details: getErrorMessage(error) }, { status: 500 });
+    return handleApiRouteError(error, {
+      code: 'MAIL_FILTER_CREATE_FAILED',
+      message: 'Failed to create filter',
+    });
   }
 }

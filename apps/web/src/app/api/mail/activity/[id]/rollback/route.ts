@@ -1,8 +1,14 @@
 import { headers } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 import { requireGoogleAccountPermission } from '@/lib/accounts';
-import { getErrorMessage } from '@/lib/errors';
+import {
+  apiError,
+  handleApiRouteError,
+  jsonApiSuccess,
+  requireAuthenticatedUser,
+  throwPermissionFailure,
+} from '@/lib/api/contracts';
 import { prisma } from '@/lib/prisma';
 import { ActionEngine } from '@/lib/services/action-engine';
 import { GmailService } from '@/lib/services/gmail.service';
@@ -11,31 +17,45 @@ import { getCurrentUser } from '@/lib/session-user';
 export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   try {
     const requestHeaders = await headers();
-    const user = await getCurrentUser(requestHeaders);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
 
     const { id } = await props.params;
-    if (!id) return NextResponse.json({ error: 'Missing activity ID' }, { status: 400 });
+    if (!id) {
+      throw apiError(400, 'INVALID_REQUEST', 'Missing activity ID');
+    }
 
     const log = await prisma.activityLog.findFirst({
       where: { id, userId: user.id },
     });
 
-    if (!log) return NextResponse.json({ error: 'Log not found' }, { status: 404 });
-    if (log.isRolledBack) return NextResponse.json({ error: 'Already rolled back' }, { status: 400 });
-    if (!log.metadata) return NextResponse.json({ error: 'No rollback metadata available' }, { status: 400 });
+    if (!log) {
+      throw apiError(404, 'ACTIVITY_LOG_NOT_FOUND', 'Log not found');
+    }
+    if (log.isRolledBack) {
+      throw apiError(400, 'ACTIVITY_LOG_ALREADY_ROLLED_BACK', 'Already rolled back');
+    }
+    if (!log.metadata) {
+      throw apiError(400, 'ACTIVITY_LOG_NO_ROLLBACK_DATA', 'No rollback metadata available');
+    }
 
     const permission = await requireGoogleAccountPermission(user.id, requestHeaders, 'organizer');
-    if (!permission.ok) return NextResponse.json(permission.body, { status: permission.status });
+    const accessToken = permission.ok ? permission.accessToken : throwPermissionFailure(permission);
 
-    const gmailService = new GmailService(permission.accessToken);
+    const gmailService = new GmailService(accessToken);
     const engine = new ActionEngine(gmailService, user.id);
     const rollback = await engine.rollback(id);
     const updatedLog = await prisma.activityLog.findUnique({ where: { id } });
 
-    return NextResponse.json({ success: rollback.success, reversedCount: rollback.reversedCount, log: updatedLog });
+    return jsonApiSuccess({
+      success: rollback.success,
+      reversedCount: rollback.reversedCount,
+      log: updatedLog,
+    });
   } catch (error: unknown) {
     console.error('Rollback Error:', error);
-    return NextResponse.json({ error: 'Failed to rollback', details: getErrorMessage(error) }, { status: 500 });
+    return handleApiRouteError(error, {
+      code: 'MAIL_ROLLBACK_FAILED',
+      message: 'Failed to rollback activity',
+    });
   }
 }
