@@ -1,3 +1,4 @@
+import { currentPrismaAdapterProvider } from '@inboxctrl/db';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
@@ -11,7 +12,7 @@ const authBaseURL =
 export const auth = betterAuth({
   baseURL: authBaseURL,
   database: prismaAdapter(prisma, {
-    provider: 'sqlite',
+    provider: currentPrismaAdapterProvider,
   }),
   socialProviders: {
     google: {
