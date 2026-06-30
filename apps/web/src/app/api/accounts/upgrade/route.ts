@@ -8,79 +8,64 @@ import {
 } from '@inboxctrl/core';
 
 import { getGoogleAccessTokenForAccount, getPrimaryGoogleAccount } from '@/lib/accounts';
+import { apiError, handleApiRouteError, jsonApiSuccess, requireAuthenticatedUser } from '@/lib/api/contracts';
+import { parseJsonObject, parsePermissionUpgradeRequest } from '@/lib/api/launch-contracts';
 import { isDemoMode } from '@/lib/demo-mode';
 import { getCurrentUser } from '@/lib/session-user';
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
-  const mode = body.mode as GmailPermissionModeId;
+  try {
+    const body = await parseJsonObject(request);
+    const { mode } = parsePermissionUpgradeRequest(body);
+    const requestHeaders = await headers();
+    const user = requireAuthenticatedUser(await getCurrentUser(requestHeaders));
 
-  const requestHeaders = await headers();
+    if (isDemoMode()) {
+      return jsonApiSuccess({
+        accountConnected: true,
+        currentMode: mode,
+        currentModeLabel: GMAIL_PERMISSION_MODES[mode].label,
+        requestedMode: mode,
+        requestedModeLabel: GMAIL_PERMISSION_MODES[mode].label,
+        scopes: getScopesWithSignInForPermissionMode(mode),
+        upgradeUrl: null,
+        demoMode: true,
+      });
+    }
 
-  const user = await getCurrentUser(requestHeaders);
-  if (!user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    const account = await getPrimaryGoogleAccount(user.id);
+    if (!account) {
+      throw apiError(400, 'GOOGLE_ACCOUNT_REQUIRED', 'No Google account connected', {
+        action: 'connect',
+      });
+    }
 
-  const validModes: GmailPermissionModeId[] = ['read-only-audit', 'organizer', 'settings-filter'];
-  if (!validModes.includes(mode)) {
-    return Response.json(
-      {
-        error: 'Invalid permission mode',
-        validModes,
-      },
-      { status: 400 }
-    );
-  }
+    const token = await getGoogleAccessTokenForAccount(user.id, requestHeaders, account);
+    if (!token) {
+      throw apiError(400, 'GOOGLE_ACCOUNT_TOKEN_REQUIRED', 'No access token available', {
+        action: 'reconnect',
+      });
+    }
 
-  if (isDemoMode()) {
-    return Response.json({
+    const currentMode = getCurrentGmailPermissionMode(token.scopes);
+    const modeInfo = GMAIL_PERMISSION_MODES[mode];
+    const targetScopes = getScopesWithSignInForPermissionMode(mode);
+
+    return jsonApiSuccess({
       accountConnected: true,
-      currentMode: mode,
-      currentModeLabel: GMAIL_PERMISSION_MODES[mode].label,
+      currentMode,
+      currentModeLabel: currentMode ? GMAIL_PERMISSION_MODES[currentMode].label : null,
       requestedMode: mode,
-      requestedModeLabel: GMAIL_PERMISSION_MODES[mode].label,
-      scopes: getScopesWithSignInForPermissionMode(mode),
-      upgradeUrl: null,
-      demoMode: true,
+      requestedModeLabel: modeInfo.label,
+      scopes: targetScopes,
+      upgradeUrl: buildUpgradeUrl(targetScopes),
+    });
+  } catch (error: unknown) {
+    return handleApiRouteError(error, {
+      code: 'ACCOUNT_UPGRADE_PREP_FAILED',
+      message: 'Failed to prepare Gmail permission upgrade',
     });
   }
-
-  const account = await getPrimaryGoogleAccount(user.id);
-  if (!account) {
-    return Response.json(
-      {
-        error: 'No Google account connected',
-        action: 'connect',
-      },
-      { status: 400 }
-    );
-  }
-
-  const token = await getGoogleAccessTokenForAccount(user.id, requestHeaders, account);
-  if (!token) {
-    return Response.json(
-      {
-        error: 'No access token available',
-        action: 'reconnect',
-      },
-      { status: 400 }
-    );
-  }
-
-  const currentMode = getCurrentGmailPermissionMode(token.scopes);
-  const modeInfo = GMAIL_PERMISSION_MODES[mode];
-  const targetScopes = getScopesWithSignInForPermissionMode(mode);
-
-  return Response.json({
-    accountConnected: true,
-    currentMode,
-    currentModeLabel: currentMode ? GMAIL_PERMISSION_MODES[currentMode].label : null,
-    requestedMode: mode,
-    requestedModeLabel: modeInfo.label,
-    scopes: targetScopes,
-    upgradeUrl: buildUpgradeUrl(targetScopes),
-  });
 }
 
 function buildUpgradeUrl(scopes: readonly (GmailPermissionModeId | string)[]): string {

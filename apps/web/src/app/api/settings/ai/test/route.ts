@@ -1,9 +1,10 @@
 import { headers } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 import { AiService } from '@inboxctrl/ai';
 
 import { decryptAiApiKey, getEnvApiKey } from '@/lib/ai-secrets';
+import { apiError, handleApiRouteError, jsonApiSuccess, requireAuthenticatedUser } from '@/lib/api/contracts';
 import { isDemoMode } from '@/lib/demo-mode';
 import { getErrorMessage } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
@@ -18,11 +19,10 @@ import { getCurrentUser } from '@/lib/session-user';
  */
 export async function POST(_req: NextRequest) {
   try {
-    const user = await getCurrentUser(await headers());
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = requireAuthenticatedUser(await getCurrentUser(await headers()));
 
     if (isDemoMode()) {
-      return NextResponse.json({
+      return jsonApiSuccess({
         success: true,
         provider: 'demo',
         model: 'deterministic-demo',
@@ -37,7 +37,7 @@ export async function POST(_req: NextRequest) {
     });
 
     if (!settings?.aiEnabled) {
-      return NextResponse.json({ error: 'AI is not enabled. Enable AI in settings first.' }, { status: 400 });
+      throw apiError(400, 'AI_CONFIGURATION_INVALID', 'AI is not enabled. Enable AI in settings first.');
     }
 
     // Determine API key: BYOK > env
@@ -49,9 +49,10 @@ export async function POST(_req: NextRequest) {
     }
 
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'No API key configured. Set a BYOK key or provide OPENAI_API_KEY in environment.' },
-        { status: 400 }
+      throw apiError(
+        400,
+        'AI_CONFIGURATION_INVALID',
+        'No API key configured. Set a BYOK key or provide OPENAI_API_KEY in environment.'
       );
     }
 
@@ -71,7 +72,7 @@ export async function POST(_req: NextRequest) {
       );
       const latencyMs = Date.now() - startTime;
 
-      return NextResponse.json({
+      return jsonApiSuccess({
         success: true,
         provider: settings.aiProviderId,
         model: settings.aiModel,
@@ -79,22 +80,17 @@ export async function POST(_req: NextRequest) {
         response: typeof result === 'string' ? result.substring(0, 200) : 'OK',
       });
     } catch (aiError) {
-      const latencyMs = Date.now() - startTime;
-      return NextResponse.json(
-        {
-          success: false,
-          provider: settings.aiProviderId,
-          model: settings.aiModel,
-          latencyMs,
-          error: getErrorMessage(aiError),
-        },
-        { status: 502 }
-      );
+      throw apiError(502, 'AI_TEST_FAILED', 'Failed to validate AI connection', {
+        provider: settings.aiProviderId,
+        model: settings.aiModel,
+        latencyMs: Date.now() - startTime,
+        error: getErrorMessage(aiError),
+      });
     }
   } catch (error: unknown) {
-    return NextResponse.json(
-      { error: 'Failed to test AI connection', details: getErrorMessage(error) },
-      { status: 500 }
-    );
+    return handleApiRouteError(error, {
+      code: 'AI_TEST_REQUEST_FAILED',
+      message: 'Failed to test AI connection',
+    });
   }
 }

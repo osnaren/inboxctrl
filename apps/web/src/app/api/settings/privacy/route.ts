@@ -1,23 +1,15 @@
 import { headers } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
-import { getErrorMessage } from '@/lib/errors';
+import { handleApiRouteError, jsonApiSuccess, requireAuthenticatedUser } from '@/lib/api/contracts';
+import {
+  DEFAULT_PRIVACY_SETTINGS,
+  formatPrivacySettings,
+  parseJsonObject,
+  parsePrivacySettingsUpdate,
+} from '@/lib/api/launch-contracts';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session-user';
-
-/**
- * Default settings used when a user hasn't configured privacy settings yet.
- * All sensitive features are disabled by default (safe-by-default posture).
- */
-const DEFAULT_PRIVACY_SETTINGS = {
-  allowExternalAi: false,
-  allowFullBodyFetch: false,
-  allowDestructiveActions: false,
-  requireBulkConfirmation: true,
-  allowAiOutputStorage: false,
-  metadataCacheRetentionDays: 90,
-  activityLogRetentionDays: 365,
-} as const;
 
 /**
  * GET /api/settings/privacy
@@ -27,32 +19,21 @@ const DEFAULT_PRIVACY_SETTINGS = {
  */
 export async function GET(_req: NextRequest) {
   try {
-    const user = await getCurrentUser(await headers());
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = requireAuthenticatedUser(await getCurrentUser(await headers()));
 
     const settings = await prisma.userSettings.findUnique({
       where: { userId: user.id },
     });
 
-    return NextResponse.json({
-      settings: {
-        allowExternalAi: settings?.allowExternalAi ?? DEFAULT_PRIVACY_SETTINGS.allowExternalAi,
-        allowFullBodyFetch: settings?.allowFullBodyFetch ?? DEFAULT_PRIVACY_SETTINGS.allowFullBodyFetch,
-        allowDestructiveActions: settings?.allowDestructiveActions ?? DEFAULT_PRIVACY_SETTINGS.allowDestructiveActions,
-        requireBulkConfirmation: settings?.requireBulkConfirmation ?? DEFAULT_PRIVACY_SETTINGS.requireBulkConfirmation,
-        allowAiOutputStorage: settings?.allowAiOutputStorage ?? DEFAULT_PRIVACY_SETTINGS.allowAiOutputStorage,
-        metadataCacheRetentionDays:
-          settings?.metadataCacheRetentionDays ?? DEFAULT_PRIVACY_SETTINGS.metadataCacheRetentionDays,
-        activityLogRetentionDays:
-          settings?.activityLogRetentionDays ?? DEFAULT_PRIVACY_SETTINGS.activityLogRetentionDays,
-      },
+    return jsonApiSuccess({
+      settings: formatPrivacySettings(settings),
       isDefault: !settings,
     });
   } catch (error: unknown) {
-    return NextResponse.json(
-      { error: 'Failed to fetch privacy settings', details: getErrorMessage(error) },
-      { status: 500 }
-    );
+    return handleApiRouteError(error, {
+      code: 'PRIVACY_SETTINGS_FETCH_FAILED',
+      message: 'Failed to fetch privacy settings',
+    });
   }
 }
 
@@ -64,52 +45,9 @@ export async function GET(_req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser(await headers());
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const body = await req.json();
-
-    // Validate retention days
-    if (body.metadataCacheRetentionDays !== undefined) {
-      const days = Number(body.metadataCacheRetentionDays);
-      if (!Number.isInteger(days) || days < 1 || days > 3650) {
-        return NextResponse.json({ error: 'metadataCacheRetentionDays must be between 1 and 3650' }, { status: 400 });
-      }
-    }
-
-    if (body.activityLogRetentionDays !== undefined) {
-      const days = Number(body.activityLogRetentionDays);
-      if (!Number.isInteger(days) || days < 1 || days > 3650) {
-        return NextResponse.json({ error: 'activityLogRetentionDays must be between 1 and 3650' }, { status: 400 });
-      }
-    }
-
-    // Build update payload with only provided fields
-    const updateData: Record<string, unknown> = {};
-    const boolFields = [
-      'allowExternalAi',
-      'allowFullBodyFetch',
-      'allowDestructiveActions',
-      'requireBulkConfirmation',
-      'allowAiOutputStorage',
-    ] as const;
-
-    for (const field of boolFields) {
-      if (typeof body[field] === 'boolean') {
-        updateData[field] = body[field];
-      }
-    }
-
-    const intFields = ['metadataCacheRetentionDays', 'activityLogRetentionDays'] as const;
-    for (const field of intFields) {
-      if (body[field] !== undefined) {
-        updateData[field] = Number(body[field]);
-      }
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: 'No valid settings provided' }, { status: 400 });
-    }
+    const user = requireAuthenticatedUser(await getCurrentUser(await headers()));
+    const body = await parseJsonObject(req);
+    const updateData = parsePrivacySettingsUpdate(body);
 
     const settings = await prisma.userSettings.upsert({
       where: { userId: user.id },
@@ -121,21 +59,13 @@ export async function POST(req: NextRequest) {
       update: updateData,
     });
 
-    return NextResponse.json({
-      settings: {
-        allowExternalAi: settings.allowExternalAi,
-        allowFullBodyFetch: settings.allowFullBodyFetch,
-        allowDestructiveActions: settings.allowDestructiveActions,
-        requireBulkConfirmation: settings.requireBulkConfirmation,
-        allowAiOutputStorage: settings.allowAiOutputStorage,
-        metadataCacheRetentionDays: settings.metadataCacheRetentionDays,
-        activityLogRetentionDays: settings.activityLogRetentionDays,
-      },
+    return jsonApiSuccess({
+      settings: formatPrivacySettings(settings),
     });
   } catch (error: unknown) {
-    return NextResponse.json(
-      { error: 'Failed to update privacy settings', details: getErrorMessage(error) },
-      { status: 500 }
-    );
+    return handleApiRouteError(error, {
+      code: 'PRIVACY_SETTINGS_UPDATE_FAILED',
+      message: 'Failed to update privacy settings',
+    });
   }
 }
