@@ -1,0 +1,19 @@
+services:
+  site:
+    build:
+      context: .
+      dockerfile: Dockerfile.site
+    environment:
+      NODE_ENV: production
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:3001/docs').then((response) =>
+          process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    ports:
+      - '${INBOXCTRL_SITE_PORT:-3001}:3001'
