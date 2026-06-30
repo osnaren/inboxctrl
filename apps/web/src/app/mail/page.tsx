@@ -45,7 +45,7 @@ export default function MailPage() {
       const res = await fetch('/api/mail/list');
       if (res.ok) {
         const data = await res.json();
-        setEmails(data.emails);
+        setEmails(data.data.emails);
       }
     } catch (error) {
       console.error('Failed to fetch emails:', error);

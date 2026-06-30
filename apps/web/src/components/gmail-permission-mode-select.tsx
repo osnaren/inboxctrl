@@ -173,8 +173,8 @@ export function PermissionUpgradePrompt({
       });
 
       const data = await res.json();
-      if (data.upgradeUrl) {
-        window.location.href = data.upgradeUrl;
+      if (data.data?.upgradeUrl) {
+        window.location.href = data.data.upgradeUrl;
       }
     } catch (e) {
       console.error('Failed to get upgrade URL', e);

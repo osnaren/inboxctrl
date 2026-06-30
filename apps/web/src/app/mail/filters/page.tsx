@@ -56,10 +56,10 @@ export default function FiltersPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Filter request failed');
+        throw new Error(data.error?.message || 'Filter request failed');
       }
 
-      setResult(data);
+      setResult(data.data);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Filter request failed');
     } finally {
