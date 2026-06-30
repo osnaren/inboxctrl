@@ -15,10 +15,18 @@ import { PrismaClient } from './generated/client';
 export type {
   Account,
   Account as AccountRecord,
+  ActionBatch,
+  ActionBatch as ActionBatchRecord,
   EmailMetadata as EmailRecord,
+  FilterDraft,
+  FilterDraft as FilterDraftRecord,
   Label as LabelRecord,
   ActivityLog as ActivityLogRecord,
+  SyncState,
+  SyncState as SyncStateRecord,
   User as UserRecord,
+  UserSettings,
+  UserSettings as UserSettingsRecord,
   Session as SessionRecord,
   Prisma,
 } from './generated/client';
