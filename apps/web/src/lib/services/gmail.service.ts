@@ -59,6 +59,10 @@ export class GmailService {
     return result.messages;
   }
 
+  async listMessages(options: { maxResults?: number; labelIds?: string[]; pageToken?: string }) {
+    return this.client.listMessages(options);
+  }
+
   async getMessageMetadata(messageId: string) {
     return this.client.getMessageMetadata(messageId);
   }

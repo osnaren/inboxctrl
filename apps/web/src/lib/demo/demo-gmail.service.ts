@@ -76,6 +76,11 @@ export class DemoGmailService {
     };
   }
 
+  async listRecentMessages(maxResults = 50, labelIds = ['INBOX']) {
+    const result = await this.listMessages({ maxResults, labelIds });
+    return result.messages;
+  }
+
   async getMessageMetadata(messageId: string) {
     const message = messages.find((candidate) => candidate.messageId === messageId);
     if (!message) throw new Error(`Demo message not found: ${messageId}`);
