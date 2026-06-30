@@ -1,0 +1,266 @@
+---
+title: Fly.io and VPS
+description: Deploy InboxCtrl on Fly.io or a generic VPS using Docker and Postgres.
+---
+
+<Callout type="warn">
+These are community deployment options, not the InboxCtrl launch baseline. Start with the [Docker self-hosting](/docs/docker-self-hosting) path first.
+</Callout>
+
+## Fly.io
+
+### Prerequisites
+
+- The `flyctl` CLI installed: [fly.io/docs/hands-on/install-flyctl](https://fly.io/docs/hands-on/install-flyctl/)
+- A Fly.io account (sign up at [fly.io](https://fly.io))
+- A Google Cloud OAuth client with a redirect URI matching your Fly app:
+
+```txt
+https://your-app.fly.dev/api/auth/callback/google
+```
+
+### Initialize the app
+
+From the InboxCtrl repo root:
+
+```bash
+fly auth login
+fly launch --no-deploy
+```
+
+Fly detects the `Dockerfile.web`. When prompted:
+
+- Choose a unique app name.
+- Select a region close to your users.
+- Decline adding a Postgres database from the wizard (we will create it separately).
+
+### Create a Postgres cluster
+
+```bash
+fly postgres create \
+  --name inboxctrl-db \
+  --vm-size shared-cpu-1x \
+  --volume-size 3 \
+  --initial-cluster-size 1
+```
+
+After creation, attach it to your app:
+
+```bash
+fly postgres attach inboxctrl-db --app your-app
+```
+
+This sets a `DATABASE_URL` secret in your Fly app automatically.
+
+### Configure secrets
+
+```bash
+fly secrets set \
+  BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \
+  INBOXCTRL_SECRET="$(openssl rand -base64 32)" \
+  BETTER_AUTH_URL="https://your-app.fly.dev" \
+  NEXT_PUBLIC_APP_URL="https://your-app.fly.dev" \
+  GOOGLE_CLIENT_ID="your-client-id" \
+  GOOGLE_CLIENT_SECRET="your-client-secret" \
+  INBOXCTRL_DEMO_MODE="false"
+```
+
+### Create `fly.toml`
+
+If `fly launch` did not generate one, create `fly.toml` in the repo root:
+
+```toml
+app = "your-app"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.web"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 50
+    soft_limit = 25
+
+[[http_service.checks]]
+  interval = "15s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+```
+
+### Deploy
+
+```bash
+fly deploy
+```
+
+Fly builds the Docker image using `Dockerfile.web`, pushes it, and starts the app. The container runs `prisma db push` on start to apply the schema.
+
+### Volumes for SQLite
+
+If you use the SQLite profile instead of Postgres, create a persistent volume:
+
+```bash
+fly volumes create inboxctrl_data --size 1 --region iad
+```
+
+Then add a mount to `fly.toml`:
+
+```toml
+[mounts]
+  source = "inboxctrl_data"
+  destination = "/app/packages/db/prisma"
+```
+
+### Google OAuth redirect
+
+After your Fly app is live, add the exact redirect URI in Google Cloud Console:
+
+```txt
+https://your-app.fly.dev/api/auth/callback/google
+```
+
+See [Google OAuth](/docs/google-oauth) for redirect URI rules.
+
+### Custom domain
+
+```bash
+fly certs add your-domain.com
+```
+
+Follow the DNS instructions Fly provides. Update `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, and the Google OAuth redirect URI to match the custom domain.
+
+### Persistent Postgres on Fly
+
+Fly Postgres is suitable for single-node self-hosting. For production workloads, configure automated backups:
+
+```bash
+fly postgres connect --app inboxctrl-db
+```
+
+Then use `pg_dump` from inside the Postgres container, or use Fly's [managed Postgres backups](https://fly.io/docs/postgres/managing/backups/).
+
+---
+
+## Generic VPS with Docker Compose
+
+This section covers deploying InboxCtrl on any VPS (DigitalOcean, Hetzner, Linode, AWS EC2, etc.) using Docker Compose with a reverse proxy.
+
+### Prerequisites
+
+- A Linux VPS with Docker and Docker Compose installed.
+- A domain name pointed to your VPS IP address.
+- A Google Cloud OAuth client with a redirect URI:
+
+```txt
+https://your-domain.com/api/auth/callback/google
+```
+
+### 1. Clone and configure
+
+```bash
+git clone https://github.com/YOUR_USERNAME/inboxctrl.git
+cd inboxctrl
+cp apps/web/.env.example.postgres apps/web/.env
+```
+
+Edit `apps/web/.env`:
+
+```txt
+DATABASE_URL=postgresql://postgres:postgres@db:5432/inboxctrl?schema=public
+BETTER_AUTH_SECRET=<generate-a-strong-secret>
+INBOXCTRL_SECRET=<generate-a-strong-secret>
+BETTER_AUTH_URL=https://your-domain.com
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+GOOGLE_CLIENT_ID=<your-client-id>
+GOOGLE_CLIENT_SECRET=<your-client-secret>
+INBOXCTRL_DEMO_MODE=false
+```
+
+### 2. Start with Docker Compose
+
+```bash
+docker compose --env-file apps/web/.env up -d --build
+```
+
+This starts the product app and a Postgres database. The app listens on port `3000` by default.
+
+### 3. Set up a reverse proxy with Caddy
+
+[Caddy](https://caddyserver.com) provides automatic HTTPS. Create a `Caddyfile`:
+
+```txt
+your-domain.com {
+  reverse_proxy localhost:3000
+}
+```
+
+Run Caddy:
+
+```bash
+docker run -d \
+  --name caddy \
+  --network host \
+  -v /etc/Caddyfile:/etc/caddy/Caddyfile \
+  -v caddy_data:/data \
+  caddy:2-alpine
+```
+
+Or install Caddy directly on the VPS and run `caddy run --config Caddyfile`.
+
+### 4. Open firewall ports
+
+```bash
+ufw allow 80/tcp
+ufw allow 443/tcp
+```
+
+### 5. Verify
+
+Open `https://your-domain.com` and verify the app loads. Check the health endpoint:
+
+```bash
+curl -s https://your-domain.com/api/health
+```
+
+### Database backups
+
+For Postgres on Docker, set up a cron job:
+
+```bash
+# Add to crontab
+0 3 * * * docker exec inboxctrl-db-1 pg_dump -U postgres inboxctrl > /backups/inboxctrl-$(date +\%F).sql
+```
+
+Rotate backups older than 30 days:
+
+```bash
+find /backups -name 'inboxctrl-*.sql' -mtime +30 -delete
+```
+
+### Updating
+
+```bash
+cd inboxctrl
+git pull
+docker compose --env-file apps/web/.env up -d --build
+```
+
+The `prisma db push` command runs on container start, applying any schema changes automatically.
+
+## Related docs
+
+- [Docker self-hosting](/docs/docker-self-hosting) for the baseline Docker setup.
+- [Database profiles](/docs/database-profiles) for SQLite and Postgres details.
+- [Google OAuth](/docs/google-oauth) for OAuth client setup.

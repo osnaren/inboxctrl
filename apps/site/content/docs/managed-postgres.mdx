@@ -1,0 +1,198 @@
+---
+title: Managed Postgres
+description: Connect InboxCtrl to Supabase Postgres or Neon Postgres for managed database hosting.
+---
+
+<Callout type="info">
+Managed Postgres is an alternative to the bundled Docker Postgres service. Start with [Docker self-hosting](/docs/docker-self-hosting) for the baseline, then switch to a managed provider when you need automatic backups, branching, or serverless scaling.
+</Callout>
+
+InboxCtrl supports Postgres as a deployment-oriented database profile. Any Postgres-compatible provider works; this guide covers Supabase and Neon specifically.
+
+## Switch to the Postgres profile
+
+Before connecting to a managed database, switch the Prisma profile:
+
+```bash
+pnpm db:use postgres
+pnpm db:generate
+```
+
+This regenerates the Prisma client for the Postgres provider.
+
+---
+
+## Supabase Postgres
+
+### Create a database
+
+1. Sign up at [supabase.com](https://supabase.com).
+2. Create a new project.
+3. Go to **Settings** &rarr; **Database** &rarr; **Connection string**.
+4. Copy the **URI** connection string.
+
+### Connection string
+
+Supabase provides a connection string in this format:
+
+```txt
+postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
+```
+
+Replace `[YOUR-PASSWORD]` with the database password you set during project creation.
+
+### Connection pooling
+
+Supabase uses PgBouncer for connection pooling. For application workloads, use the **Transaction mode** pooler connection string:
+
+```txt
+postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+```
+
+Port `6543` is the pooler port. Use this in your `DATABASE_URL` for better connection handling under load.
+
+### SSL
+
+Supabase requires SSL. Append `?sslmode=require` to the connection string if it is not already present:
+
+```txt
+DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.co:6543/postgres?sslmode=require"
+```
+
+### Apply schema
+
+```bash
+DATABASE_URL="your-supabase-url" pnpm exec prisma db push --schema packages/db/prisma/schema.prisma
+```
+
+Or set `DATABASE_URL` in `apps/web/.env` and use the Docker Compose workflow.
+
+### Backups
+
+Supabase provides automatic daily backups on paid plans (Pro and above). Free plan projects do not include automatic backups. For the free plan, use `pg_dump` manually:
+
+```bash
+pg_dump "your-supabase-connection-string" > backup.sql
+```
+
+### Caveats
+
+| Topic | Note |
+| --- | --- |
+| Connection limits | Supabase free plan allows 60 concurrent connections. Use the pooler (port `6543`) to stay within limits. |
+| Extensions | InboxCtrl does not require Postgres extensions. If you add custom extensions, check Supabase's [supported extensions list](https://supabase.com/docs/guides/database/extensions). |
+| IPv6 | Supabase endpoints support IPv6. Ensure your hosting provider can reach Supabase over IPv6 or use the pooler. |
+| Region | Choose a Supabase region close to your app deployment for lower latency. |
+
+---
+
+## Neon Postgres
+
+### Create a database
+
+1. Sign up at [neon.tech](https://neon.tech).
+2. Create a new project.
+3. Go to the **Dashboard** &rarr; **Connection Details**.
+4. Copy the connection string.
+
+### Connection string
+
+Neon provides a connection string in this format:
+
+```txt
+postgresql://neondb-owner:[YOUR-PASSWORD]@ep-[ENDPOINT-ID].aws.neon.tech/neondb?sslmode=require
+```
+
+### Serverless driver (optional)
+
+Neon offers a serverless WebSocket driver for edge environments. InboxCtrl uses the standard `pg` driver through Prisma, so the regular connection string works. The Neon serverless driver is not required.
+
+### Connection pooling
+
+Neon includes built-in connection pooling. Use the `-pooler` endpoint for pooled connections:
+
+```txt
+postgresql://neondb-owner:[PASSWORD]@ep-[ENDPOINT]-pooler.aws.neon.tech/neondb?sslmode=require
+```
+
+This is recommended for serverless or auto-scaling deployments.
+
+### Apply schema
+
+```bash
+DATABASE_URL="your-neon-url" pnpm exec prisma db push --schema packages/db/prisma/schema.prisma
+```
+
+### Branching
+
+Neon supports database branching. Create a branch for testing:
+
+```bash
+# From the Neon dashboard or CLI
+neon branches create --name staging
+```
+
+Use the staging branch connection string for non-production environments. Each branch has its own connection string.
+
+### Backups
+
+Neon provides point-in-time restore (PITR) on paid plans. Free plan projects retain 24 hours of history. For long-term backups, use `pg_dump`:
+
+```bash
+pg_dump "your-neon-connection-string" > backup.sql
+```
+
+### Caveats
+
+| Topic | Note |
+| --- | --- |
+| Cold starts | Neon free tier computes may auto-suspend after 5 minutes of inactivity. The first query after suspension takes a few seconds to wake the compute. |
+| Connection limits | Free plan allows 100 concurrent connections. Use the pooler endpoint. |
+| Compute hours | Free plan includes 191.9 compute hours/month. A single compute running 24/7 uses ~720 hours. Monitor usage in the Neon dashboard. |
+| Region | Choose a Neon region close to your app. Supported regions include AWS `us-east-1`, `eu-central-1`, `ap-southeast-1`, and more. |
+
+---
+
+## Using with Docker
+
+To use a managed Postgres provider with Docker, set `DATABASE_URL` in your env file to the managed provider's connection string instead of the bundled Docker Postgres:
+
+```txt
+DATABASE_URL="your-managed-postgres-url"
+```
+
+Then start Docker Compose without the bundled Postgres service. Create a compose override or use the app service only:
+
+```yaml
+# docker-compose.override.yml
+services:
+  db:
+    profiles:
+      - local
+```
+
+This disables the bundled `db` service so the app connects to the remote database.
+
+## Using with Railway, Render, or Fly.io
+
+Set `DATABASE_URL` in your platform's environment variables to the managed provider's connection string. Disable or remove the platform's built-in Postgres addon if you prefer Supabase or Neon.
+
+## Migrations
+
+InboxCtrl uses `prisma db push` for schema synchronization in development and deployment. For production managed databases, consider switching to Prisma Migrate:
+
+```bash
+pnpm exec prisma migrate deploy --schema packages/db/prisma/schema.prisma
+```
+
+This applies pending migration files instead of pushing the schema directly. Generate migration files with:
+
+```bash
+pnpm exec prisma migrate dev --schema packages/db/prisma/schema.prisma
+```
+
+## Related docs
+
+- [Database profiles](/docs/database-profiles) for SQLite and Postgres profile switching.
+- [Docker self-hosting](/docs/docker-self-hosting) for the baseline Docker setup.
+- [Troubleshooting](/docs/troubleshooting) for common database issues.

@@ -11,6 +11,7 @@ Postgres support is available as an explicit provider profile for deployment-ori
 
 - SQLite: default local development path.
 - Postgres: supported deployment profile.
+- Managed Postgres (Supabase, Neon): supported via external connection strings. See [Managed Postgres](/docs/managed-postgres).
 - Hosted database templates: future deployment docs, not a hosted InboxCtrl service.
 
 Switch providers with `pnpm db:use sqlite` or `pnpm db:use postgres`, then regenerate and apply schema changes with the repo DB scripts.

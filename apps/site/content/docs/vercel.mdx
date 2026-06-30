@@ -1,0 +1,94 @@
+---
+title: Vercel
+description: Deploy the InboxCtrl public site and docs to Vercel.
+---
+
+<Callout type="info">
+This guide covers deploying `apps/site`, the public marketing and docs app. The self-host product app (`apps/web`) requires a database, Gmail credentials, and server-side runtime that Vercel's serverless platform does not provide out of the box. Use [Docker self-hosting](/docs/docker-self-hosting) for the product app.
+</Callout>
+
+## What deploys to Vercel
+
+`apps/site` is a static Next.js app that serves the public landing page and Fumadocs-powered documentation. It does not require:
+
+- A database
+- Google OAuth credentials
+- Gmail API access
+- Better Auth secrets
+- AI provider keys
+
+This makes it safe to deploy on Vercel's serverless platform without exposing sensitive credentials.
+
+## Deploy from GitHub
+
+1. Push your InboxCtrl fork to GitHub.
+2. Open [vercel.com/new](https://vercel.com/new) and import your repository.
+3. Configure the project:
+
+| Setting | Value |
+| --- | --- |
+| Framework Preset | Next.js |
+| Root Directory | `apps/site` |
+| Build Command | `pnpm install && pnpm --filter @inboxctrl/site build` |
+| Output Directory | `.next` |
+
+4. Add the environment variable `NEXT_TELEMETRY_DISABLED=1` to opt out of Next.js telemetry.
+5. Deploy.
+
+## Monorepo configuration
+
+InboxCtrl uses a pnpm workspace. Vercel needs to install dependencies from the root `package.json` and build only `apps/site`. If Vercel does not auto-detect the monorepo structure:
+
+1. Go to **Settings** &rarr; **General**.
+2. Set **Root Directory** to `apps/site`.
+3. Enable **Include files outside the Root Directory** so Vercel can access the shared `packages/ui` workspace dependency.
+
+Alternatively, install dependencies from the repo root:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+## Environment variables
+
+`apps/site` requires no secrets. The only recommended variable is:
+
+| Variable | Value |
+| --- | --- |
+| `NEXT_TELEMETRY_DISABLED` | `1` |
+
+If you add analytics or other integrations to the site later, their keys go here.
+
+## Custom domain
+
+1. In the Vercel project dashboard, go to **Settings** &rarr; **Domains**.
+2. Add your domain (for example, `inboxctrl.dev`).
+3. Follow Vercel's DNS verification steps.
+
+## Build and preview
+
+Vercel builds on every push to the default branch. Preview deployments are created automatically for pull requests. Use preview deployments to review docs changes before merging.
+
+## What not to deploy on Vercel
+
+Do not deploy `apps/web` on Vercel. The product app needs:
+
+- Persistent server-side processes for Gmail sync
+- A Postgres or SQLite database
+- Better Auth session management with server-side token refresh
+- Direct access to the Google OAuth token flow
+
+Use Docker, Railway, Render, or Fly.io for the product app.
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| Build fails with missing workspace dependency | Ensure the Root Directory includes access to the repo root for `@inboxctrl/ui`. |
+| Docs pages return 404 | Verify `fumadocs-mdx` build output is present. Rebuild and check the `.source` directory. |
+| Styles are missing | Confirm `tailwindcss` and `@tailwindcss/postcss` are in `apps/site` dev dependencies. |
+
+## Related docs
+
+- [Docker self-hosting](/docs/docker-self-hosting) for the product app deployment.
+- [Getting started](/docs/getting-started) for all available launch paths.

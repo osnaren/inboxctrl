@@ -1,0 +1,108 @@
+---
+title: Railway
+description: Deploy the InboxCtrl product app on Railway using Docker templates and a managed Postgres database.
+---
+
+<Callout type="warn">
+Railway is a community deployment option, not the InboxCtrl launch baseline. Start with the [Docker self-hosting](/docs/docker-self-hosting) path first and move to Railway only when you need managed infrastructure.
+</Callout>
+
+## Prerequisites
+
+- A Railway account at [railway.com](https://railway.com).
+- A Google Cloud OAuth client with a redirect URI matching your Railway domain:
+
+```txt
+https://your-railway-app.up.railway.app/api/auth/callback/google
+```
+
+- Strong generated secrets for `BETTER_AUTH_SECRET` and `INBOXCTRL_SECRET`.
+
+## Deploy from GitHub
+
+1. Push your InboxCtrl fork to a GitHub repository.
+2. Open the Railway dashboard and create a new project.
+3. Choose **Deploy from GitHub repo** and select your fork.
+4. Railway detects `Dockerfile.web` automatically.
+
+## Add Postgres
+
+1. In the Railway project canvas, click **New** &rarr; **Database** &rarr; **PostgreSQL**.
+2. Railway provisions a managed Postgres instance and exposes connection variables to linked services.
+
+## Configure environment variables
+
+In the service settings, add the variables below. Use Railway's variable references to connect Postgres automatically.
+
+```txt
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+BETTER_AUTH_SECRET=<generate-a-strong-secret>
+INBOXCTRL_SECRET=<generate-a-strong-secret>
+BETTER_AUTH_URL=https://your-railway-app.up.railway.app
+NEXT_PUBLIC_APP_URL=https://your-railway-app.up.railway.app
+GOOGLE_CLIENT_ID=<your-google-client-id>
+GOOGLE_CLIENT_SECRET=<your-google-client-secret>
+INBOXCTRL_DEMO_MODE=false
+```
+
+Railway's `${{Postgres.DATABASE_URL}}` reference resolves to the connection string of the Postgres service in the same project. You can add optional AI provider keys if you want AI features:
+
+```txt
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GOOGLE_GENERATIVE_AI_API_KEY=
+GROQ_API_KEY=
+```
+
+## Build configuration
+
+Railway reads `Dockerfile.web` by default. The image runs `prisma db push` on container start to apply the schema, then starts the Next.js production server. No extra build command configuration is needed.
+
+Set `RAILWAY_DOCKERFILE_PATH=Dockerfile.web` if Railway does not detect the Dockerfile automatically.
+
+## Health check
+
+InboxCtrl exposes a health endpoint at `/api/health`. In the Railway service settings under **Healthcheck**, set:
+
+| Field    | Value             |
+| -------- | ----------------- |
+| Path     | `/api/health`     |
+| Timeout  | `10` seconds      |
+
+Alternatively, set `RAILWAY_HEALTHCHECK_TIMEOUT_SEC=10` as an environment variable.
+
+## Google OAuth redirect
+
+After Railway assigns a domain, go to Google Cloud Console and add the exact redirect URI:
+
+```txt
+https://your-railway-app.up.railway.app/api/auth/callback/google
+```
+
+Google redirect URI matching is exact, including scheme, host, path, case, and trailing slash.
+
+## Custom domain
+
+1. In the Railway service settings, go to **Settings** &rarr; **Networking** &rarr; **Public Networking**.
+2. Add your custom domain and follow Railway's DNS verification steps.
+3. Update `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` to the custom domain.
+4. Update the Google OAuth redirect URI to match the custom domain.
+
+## Persistent storage
+
+Railway Postgres data persists in the managed service. The product app itself is stateless; all user data lives in the database. If you use the SQLite profile instead of Postgres, you must add a Railway volume mounted to `/app/packages/db/prisma` to persist the SQLite file across deploys.
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| Build fails with Prisma error | Ensure `DATABASE_URL` is set and reachable at build time, or verify the Dockerfile build args match your profile. |
+| OAuth callback mismatch | Confirm the Google redirect URI exactly matches `https://<your-domain>/api/auth/callback/google`. |
+| Health check fails | Increase `RAILWAY_HEALTHCHECK_TIMEOUT_SEC` if the app needs more time to start. |
+| Port conflict | Railway assigns a `PORT` variable automatically. InboxCtrl binds to `3000` inside the container; Railway maps it externally. |
+
+## Related docs
+
+- [Docker self-hosting](/docs/docker-self-hosting) for the baseline Docker setup.
+- [Database profiles](/docs/database-profiles) for SQLite and Postgres profile details.
+- [Google OAuth](/docs/google-oauth) for OAuth client setup and redirect URI rules.
