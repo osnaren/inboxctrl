@@ -52,6 +52,9 @@ model User {
   emails        EmailMetadata[]
   labels        Label[]
   activityLogs  ActivityLog[]
+  syncStates    SyncState[]
+  filterDrafts  FilterDraft[]
+  actionBatches ActionBatch[]
   settings      UserSettings?
 
   @@map("user")
@@ -115,6 +118,57 @@ model ActivityLog {
   metadata    String?  // JSON string containing previous state for rollback (e.g., message IDs, previous label IDs)
   isRolledBack Boolean @default(false)
   createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model SyncState {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncKey      String
+  status       String   @default("idle")
+  lockedAt     DateTime?
+  lockedUntil  DateTime?
+  lastSyncedAt DateTime?
+  lastError    String?
+  lastResult   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, syncKey])
+  @@index([syncKey, lockedUntil])
+}
+
+model FilterDraft {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt       String
+  criteriaJson String
+  actionJson   String
+  dryRun       Boolean  @default(false)
+  matchedCount Int?
+  filterId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model ActionBatch {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action         String
+  labelId        String?
+  messageIdsJson String
+  totalCount     Int
+  processedCount Int
+  failedCount    Int
+  activityLogId  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([userId, createdAt(sort: Desc)])
 }
