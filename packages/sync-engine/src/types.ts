@@ -9,6 +9,8 @@ export interface SyncResult {
   syncedMessages: number;
 }
 
+export type MaybePromise<T> = T | Promise<T>;
+
 export interface LabelSyncResult {
   synced: number;
   labels: Array<{ gmailId: string; name: string }>;
@@ -116,9 +118,9 @@ export interface SyncDbAdapter {
 // ---------------------------------------------------------------------------
 
 export interface SyncLock {
-  acquire(key: string): boolean;
-  release(key: string): void;
-  isLocked(key: string): boolean;
+  acquire(key: string): MaybePromise<boolean>;
+  release(key: string): MaybePromise<void>;
+  isLocked(key: string): MaybePromise<boolean>;
 }
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@ import { syncLabels } from './label-sync';
 import { syncMetadata } from './metadata-sync';
 import { InProcessSyncLock } from './sync-lock';
 
-import type { FullSyncOptions, SyncDbAdapter, SyncGmailClient, SyncResult } from './types';
+import type { FullSyncOptions, SyncDbAdapter, SyncGmailClient, SyncLock, SyncResult } from './types';
 
 /**
  * High-level sync engine that orchestrates a full label + metadata sync.
@@ -13,12 +13,16 @@ import type { FullSyncOptions, SyncDbAdapter, SyncGmailClient, SyncResult } from
  * - Reports progress through the optional callback.
  */
 export class SyncEngine {
-  private readonly lock = new InProcessSyncLock();
+  private readonly lock: SyncLock;
+
+  constructor(lock: SyncLock = new InProcessSyncLock()) {
+    this.lock = lock;
+  }
 
   async fullSync(gmail: SyncGmailClient, db: SyncDbAdapter, options: FullSyncOptions): Promise<SyncResult> {
     const lockKey = `sync:${options.userId}`;
 
-    if (!this.lock.acquire(lockKey)) {
+    if (!(await this.lock.acquire(lockKey))) {
       throw new Error('A sync is already in progress for this user');
     }
 
@@ -41,11 +45,11 @@ export class SyncEngine {
         syncedMessages: metadataResult.synced,
       };
     } finally {
-      this.lock.release(lockKey);
+      await this.lock.release(lockKey);
     }
   }
 
-  isSyncing(userId: string): boolean {
+  async isSyncing(userId: string): Promise<boolean> {
     return this.lock.isLocked(`sync:${userId}`);
   }
 }
