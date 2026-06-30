@@ -28,6 +28,7 @@
     "demo:reset": "cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/demo-data reset",
     "demo": "pnpm demo:reset && pnpm seed:demo && cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/web dev",
     "test:demo-guard": "cross-env INBOXCTRL_DEMO_MODE=true pnpm --filter @inboxctrl/web exec tsx src/lib/services/gmail.service.demo.test.ts",
+    "test:api-contracts": "pnpm --filter @inboxctrl/web exec tsx --test src/lib/api/launch-contracts.test.ts",
     "format": "prettier --write .",
     "spell": "cspell \"**\"",
     "prisma:generate": "pnpm db:generate",
