@@ -2,8 +2,6 @@ import { RootProvider } from 'fumadocs-ui/provider/next';
 import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 
-import { SiteFooter } from '@/components/site-footer';
-import { SiteHeader } from '@/components/site-header';
 import { siteConfig } from '@/config/site.config';
 
 import type { Metadata } from 'next';
@@ -41,13 +39,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <RootProvider>
-          <div className="site-shell">
-            <SiteHeader />
-            {children}
-            <SiteFooter />
-          </div>
-        </RootProvider>
+        <RootProvider>{children}</RootProvider>
       </body>
     </html>
   );

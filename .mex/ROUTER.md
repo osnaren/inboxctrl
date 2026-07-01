@@ -44,7 +44,7 @@ Then read this file fully before doing anything else in this session.
 - Demo mode with deterministic fixtures — no Gmail or AI keys needed
 - Dual database support (SQLite for dev, Postgres for Docker self-host)
 - Plugin/extension SDK with feature gating and licensing
-- Public docs site (apps/site) with deployment guides for Docker, Railway, Render, Fly.io, VPS
+- Public docs site (apps/site) with deployment guides for Docker, Railway, Render, Fly.io, VPS, and complete responsive light/dark theme compatibility.
 - API contract layer with uniform error envelope
 
 **Not yet built:**

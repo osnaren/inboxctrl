@@ -5,22 +5,41 @@ description: Launch docs for the self-hosted OSS Gmail control app.
 
 InboxCtrl is an AGPL self-hosted app for reviewing Gmail metadata, staging mailbox actions, and keeping rollback context before anything changes in Gmail.
 
+<Callout type="info">
 The public launch path is local-first. There is no hosted InboxCtrl SaaS at launch, and Pro, Cloud, and Desktop work remain future planning rather than available products.
+</Callout>
 
 ## What to read first
 
-- Start with [Getting started](/docs/getting-started) for the fastest path.
-- Use [Demo mode](/docs/demo-mode) when you want to try the app without Google OAuth.
-- Use [Local setup](/docs/local-setup) when you want to run the product app against your own credentials.
-- Use [Docker self-hosting](/docs/docker-self-hosting) when you want the current launch deployment baseline.
-- Use [API overview](/docs/api-overview) and [Gmail permissions](/docs/gmail-permissions) before wiring product integrations or OAuth upgrades.
+<Cards>
+  <Card title="Getting started" href="/docs/getting-started">
+    The fastest path to get up and running with InboxCtrl.
+  </Card>
+  <Card title="Demo mode" href="/docs/demo-mode">
+    Try the app safely without requiring a Google OAuth connection.
+  </Card>
+  <Card title="Local setup" href="/docs/local-setup">
+    Run the product app against your own credentials.
+  </Card>
+  <Card title="Docker self-hosting" href="/docs/docker-self-hosting">
+    Deploy InboxCtrl via the official Docker image.
+  </Card>
+  <Card title="API overview" href="/docs/api-overview">
+    Wire product integrations or upgrade OAuth capabilities.
+  </Card>
+  <Card title="Gmail permissions" href="/docs/gmail-permissions">
+    Understand how InboxCtrl handles Gmail OAuth scopes safely.
+  </Card>
+</Cards>
 
 ## Repo shape
 
+<Callout type="warning" title="Directory Context">
 - `apps/site` contains this public site and public docs.
 - `apps/web` contains the self-hosted product app.
 - `packages/*` contains shared OSS package boundaries.
 - Root `docs/` remains internal engineering documentation and is not the public docs source.
+</Callout>
 
 ## Launch checks
 
