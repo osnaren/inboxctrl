@@ -1,32 +1,41 @@
-import { DetailGrid, PageIntro } from '@/components/content-blocks';
+import { Shield, Database, Trash2 } from 'lucide-react';
 
-export const metadata = {
-  title: 'Privacy',
+import { ScrollReveal } from '@/components/scroll-reveal';
+
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description: 'How InboxCtrl handles your data.',
 };
 
-const items = [
-  {
-    title: 'Metadata first',
-    body: 'Mailbox lists are designed around cached metadata. Full message bodies are fetched on demand for workflows that explicitly need them.',
-  },
-  {
-    title: 'Bring your own AI key',
-    body: 'AI features are optional and should make provider/model selection and external processing implications visible to the user.',
-  },
-  {
-    title: 'Self-host responsibility',
-    body: 'Users control their deployment, secrets, database, backups, OAuth app, and network exposure when running InboxCtrl themselves.',
-  },
-];
-
-export default function PrivacyPage() {
+export default function PrivacyPolicyPage() {
   return (
     <main className="page-content">
-      <PageIntro
-        title="Privacy"
-        body="InboxCtrl is designed for local-first mailbox control, explicit Gmail permissions, and user-owned infrastructure."
-      />
-      <DetailGrid items={items} />
+      <ScrollReveal className="page-intro">
+        <h1>Privacy Policy</h1>
+        <p>Last updated: June 2026</p>
+      </ScrollReveal>
+
+      <ScrollReveal delay={0.1} className="detail-grid" stagger={0.1} staggerSelector=".detail-card">
+        <div className="detail-card">
+          <Database className="text-primary mb-4" style={{ color: 'var(--primary-light)', marginBottom: '16px' }} />
+          <h2>Local Metadata Only</h2>
+          <p>We only store thread IDs, subjects, and timestamps in your local database. We actively strip bodies.</p>
+        </div>
+        <div className="detail-card">
+          <Shield className="text-primary mb-4" style={{ color: 'var(--primary-light)', marginBottom: '16px' }} />
+          <h2>No Telemetry</h2>
+          <p>The open-source engine contains zero telemetry. We do not track your rules, usage, or email volume.</p>
+        </div>
+        <div className="detail-card">
+          <Trash2 className="text-primary mb-4" style={{ color: 'var(--primary-light)', marginBottom: '16px' }} />
+          <h2>Ephemeral AI</h2>
+          <p>
+            Text sent to OpenAI/Anthropic is not retained by us, and we configure the SDKs to opt-out of model training.
+          </p>
+        </div>
+      </ScrollReveal>
     </main>
   );
 }
