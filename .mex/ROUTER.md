@@ -14,6 +14,10 @@ edges:
     condition: when setting up the dev environment or running the project for the first time
   - target: context/gmail-sync.md
     condition: when working on Gmail integration, sync engine, demo mode, or permission model
+  - target: context/project-management.md
+    condition: when creating, updating, or reviewing Linear issues or project status
+  - target: context/git-workflow.md
+    condition: when committing code, creating branches, or preparing PRs
   - target: patterns/INDEX.md
     condition: when starting a task — check the pattern index for a matching pattern file
 last_updated: 2026-07-01

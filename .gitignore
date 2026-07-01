@@ -45,10 +45,6 @@ web-demo*.log
 .internal/
 internal/
 
-# local agent instructions
-AGENTS.md
-CLAUDE.md
-
 # local databases
 *.db
 *.db-journal
@@ -68,3 +64,4 @@ packages/db/src/generated/
 packages/db/prisma/generated/
 
 .continue/
+.impeccable/
